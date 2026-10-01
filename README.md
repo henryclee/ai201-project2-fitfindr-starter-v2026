@@ -40,8 +40,11 @@
 ## What This Does
 
 <!-- Three or four sentences: what a user asks for, and what they get back. -->
-
-
+Fitfindr agent allows a user to query the agent for a clothing item with a given
+description, size and max price. It then searches the listings for the item that
+most closely matches this query. It returns the selected item, a suggested outfit
+that incorporates this item into the user's existing wardrobe, and a caption that
+the user could use to caption a photo wearing all of these items.
 
 ---
 
@@ -60,23 +63,45 @@
 ### `search_listings`
 
 - **What it does:**
+Search the listings data for items matching a description, size (optional), and
+max price (optional), and returns a list of items from the listing that match the
+parameters, best match first.
 - **Inputs:** <!-- name and type each: `max_price` (float), not "a price" -->
+description: str - keywords describing what the user wants
+size: str | None - size string
+max_price: float | None - maximum price, inclusive
 - **Returns:**
+A list of matching items (dict) from listings, best match first, or an empty list 
+if no matches are found. An item dict contains keys for description, category, style_tags, 
+size, etc...
 - **When it has nothing:**
+Empty list
 
 ### `suggest_outfit`
 
 - **What it does:**
+Given an item, and the user's wardrobe, suggests an outfit
 - **Inputs:**
+new_item: dict - an item from listings
+warddrobe: dict - a dict with an item key holding a list of items
 - **Returns:**
+A string suggestion of one or two outfits incorporating the item and items from
+the users warddrobe
 - **When it has nothing:**
+If warddrobe is empty, returns general styling advice
 
 ### `create_fit_card`
 
 - **What it does:**
+Writes a short caption that a user might use to caption of picture of themselves
+wearing an outfit with an item from listings
 - **Inputs:**
+outfit: str - The outfit string from suggest outfit
+new_item: dict - an item from listings
 - **Returns:**
+A caption string of two to four sentences describing the outfit and the item
 - **When it has nothing:**
+If outfit is empty, return a descriptive message of the item
 
 ---
 
@@ -94,12 +119,24 @@
      function have to be real. -->
 
 **Branch rule:**
+If search_listings returns an empty list, put a message in session["error"] and stop.
+Otherwise, take the first item from the list, and place it in session["selected_item],
+and use it for suggest_outfit
 
 **Where it lives:** `agent.py::run_agent`
 
 **How the query is parsed:** <!-- regex, string splitting, or asking the model — say which -->
+The query is sent to generate with a prompt asking for a JSON object including keys for 
+description, size, and max_price
 
 **What moves through the session:** <!-- which fields, in what order -->
+query — set at session creation
+parsed (description, size, max_price) — filled from the model-parsing step
+search_results — filled from search_listings()
+selected_item — the first search result (or loop stops here if empty, setting error instead)
+outfit_suggestion — filled from suggest_outfit()
+fit_card — filled from create_fit_card()
+error - filled in case of an error (e.g. if search items fails to find a matched item)
 
 ---
 
