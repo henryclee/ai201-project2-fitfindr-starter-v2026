@@ -241,6 +241,17 @@ The syntax for collecting all of the item's keywords into a set
 - *What I changed:*
 The code for the search_listings tool, primarily in score_listing
 
+---
+
+## Stretch Features
+
+### A fourth tool - compare_price
+
+### A second branch - reject unparseable query
+
+### Style memory
+
+
 <!-- ═══════════════════════ UNIT 4 — THE TEST ═══════════════════════
 
      Don't fill these in during unit 3.
