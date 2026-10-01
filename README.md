@@ -218,21 +218,28 @@ Scored these classic vintage Levi's 501s in the ultimate medium wash on Depop fo
      "I gave Claude my search_listings spec. It returned None on no match
      instead of an empty list, so I changed it" is the level we want. -->
 
-I used AI to check my criteria to make sure they were testable.
+
 
 I used AI to help me write the search_listings tool, especially for the syntax for the score_listing sub function.
 
 **Moment 1**
 
 - *What I asked for:*
+I used AI to check my criteria to make sure they were testable.
+"Here are five acceptance criteria for a multi-tool agent. For each one, tell me exactly how you would test it using only what the sentence says. Don't suggest improvements — just tell me what you'd do."
 - *What came back:*
+It made suggestions for some criteria that were not objectively testable.
 - *What I changed:*
+I changed the criteria so they could be tested by an objective reviewer.
 
 **Moment 2**
 
 - *What I asked for:*
+I used AI to help me write the search_listings tool, especially for the syntax for the score_listing sub function. I had the idea of creating a set of keywords from the description, and counting the keywords from multiple sections from the item listing (desription, style_tags, colors, brand)
 - *What came back:*
+The syntax for collecting all of the item's keywords into a set
 - *What I changed:*
+The code for the search_listings tool, primarily in score_listing
 
 <!-- ═══════════════════════ UNIT 4 — THE TEST ═══════════════════════
 
