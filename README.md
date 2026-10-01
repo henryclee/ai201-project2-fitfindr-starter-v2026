@@ -157,18 +157,31 @@ $ python app.py ask '...'
 **The three tools, tested one at a time**
 
 ```
-$ python -c "from tools import search_listings; print(search_listings('graphic tee', max_price=30))"
-
+ % python -c "from tools import search_listings; print(search_listings('graphic tee', max_price=30))"
+[{'id': 'lst_002', 'title': 'Y2K Baby Tee — Butterfly Print', 'description': 'Super cute early 2000s baby tee with butterfly graphic. Fitted crop length. Tag says medium but fits like a small.', 'category': 'tops', 'style_tags': ['y2k', 'vintage', 'graphic tee', 'cottagecore'], 'size': 'S/M', 'condition': 'excellent', 'price': 18.0, 'colors': ['white', 'pink', 'purple'], 'brand': None, 'platform': 'depop'}, {'id': 'lst_006', 'title': 'Graphic Tee — 2003 Tour Bootleg Style', 'description': 'Vintage-style bootleg tee with faded graphic. Slightly boxy fit. 100% cotton, soft and worn-in.', 'category': 'tops', 'style_tags': ['graphic tee', 'vintage', 'grunge', 'streetwear', 'band tee'], 'size': 'L', 'condition': 'good', 'price': 24.0, 'colors': ['black'], 'brand': None, 'platform': 'depop'}, {'id': 'lst_017', 'title': 'Mesh Long-Sleeve Top — Black', 'description': 'Sheer black mesh long-sleeve. Great for layering under a graphic tee or over a bralette. Stretchy material, fits true to size.', 'category': 'tops', 'style_tags': ['y2k', 'grunge', 'goth', 'layering'], 'size': 'S/M', 'condition': 'excellent', 'price': 15.0, 'colors': ['black'], 'brand': None, 'platform': 'depop'}, {'id': 'lst_033', 'title': 'Vintage Band Tee — Faded Grey', 'description': 'Faded grey band-style tee with distressed graphic. Crew neck. Fits boxy. Well-loved but no holes or major damage.', 'category': 'tops', 'style_tags': ['vintage', 'grunge', 'band tee', 'graphic tee', 'streetwear'], 'size': 'L', 'condition': 'fair', 'price': 19.0, 'colors': ['grey', 'charcoal'], 'brand': None, 'platform': 'depop'}, {'id': 'lst_015', 'title': 'Vintage Graphic Hoodie — Faded Black', 'description': 'Faded black pullover hoodie with barely-visible vintage graphic on the chest. Cozy interior. Some pilling but adds to the worn-in look.', 'category': 'tops', 'style_tags': ['vintage', 'grunge', 'graphic', 'streetwear'], 'size': 'L', 'condition': 'fair', 'price': 26.0, 'colors': ['black', 'charcoal'], 'brand': None, 'platform': 'depop'}]
 ```
 
 ```
-$ python -c "from tools import suggest_outfit; ..."
+% python -c "from tools import suggest_outfit; from utils.data_loader import get_example_wardrobe, load_listings; print(suggest_outfit(load_listings()[0], get_example_wardrobe()))"
+Hey! Amazing find on those vintage Levi’s 501s—classic medium-wash denim at $38 is an absolute steal, and that slight knee fading gives them instant character. 
 
+Since 501s have that timeless, straight-leg vintage silhouette, let’s lean into an effortless, cool-girl streetwear look using pieces you already own.
+
+### **The Outfit: Off-Duty Vintage Streetwear**
+
+*   **Top:** **White ribbed tank top** (`w_003`) — Tucked into the jeans to define your waist and balance the straight-leg fit.
+*   **Outerwear:** **Oversized grey crewneck sweatshirt** (`w_004`) — Layered right over the tank. Since it drops below the hip, let it slouch off one shoulder for that relaxed, effortlessly thrown-together vibe.
+*   **Shoes:** **Chunky white sneakers** (`w_007`) — To tie in the white from the tank and give the outfit a fresh, modern streetwear edge as they pool slightly over the hems of the 501s.
+*   **Accessories:** 
+    *   **Brown leather belt** (`w_009`) — Add this to cinch the waist if you want to let the crewneck peek out slightly over the waistband, adding a nice touch of warmth against the blue denim.
+    *   **Black crossbody bag** (`w_010`) — For a sleek, everyday finishing touch.
+
+**Why it works:** It’s comfortable, high-contrast (grey, white, and medium indigo wash), and plays with proportions by pairing a fitted base with an oversized cozy layer. You're ready to run errands, grab coffee, or hit the thrift stores again!
 ```
 
 ```
-$ python -c "from tools import create_fit_card; ..."
-
+% python -c "from tools import create_fit_card; from utils.data_loader import load_listings; print(create_fit_card('jeans and white sneakers', load_listings()[0]))"
+Scored these classic vintage Levi's 501s in the ultimate medium wash on Depop for just $38! I styled them with crisp white sneakers for that effortless, timeless everyday look. Nothing beats the fit and character of a true vintage pair of denim. ✨👖
 ```
 
 ---
@@ -181,6 +194,10 @@ $ python -c "from tools import create_fit_card; ..."
 
      "I gave Claude my search_listings spec. It returned None on no match
      instead of an empty list, so I changed it" is the level we want. -->
+
+I used AI to check my criteria to make sure they were testable.
+
+I used AI to help me write the search_listings tool, especially for the syntax for the score_listing sub function.
 
 **Moment 1**
 

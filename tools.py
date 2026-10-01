@@ -27,6 +27,7 @@ from utils.data_loader import load_listings
 
 # ── Tool 1: search_listings ───────────────────────────────────────────────────
 
+
 def search_listings(
     description: str,
     size: str | None = None,
@@ -78,11 +79,45 @@ def search_listings(
     Test it from a terminal before you move on:
         python -c "from tools import search_listings; print(search_listings('graphic tee', max_price=30))"
     """
-    # TODO: replace this with your implementation
-    return []
+    max_listings = config.SEARCH_RESULT_LIMIT
+
+    listings = load_listings()
+    filtered_price = [
+        listing
+        for listing in listings
+        if max_price is None or listing["price"] <= max_price
+    ]
+    filtered_size = [
+        listing
+        for listing in filtered_price
+        if size is None or (listing["size"] and size.lower() in listing["size"].lower())
+    ]
+
+    description_keywords = set(description.lower().split())
+
+    def score_listing(listing) -> int:
+        listing_keywords = set()
+        keys = ["title", "description", "style_tags", "colors", "brand"]
+        for key in keys:
+            value = listing.get(key)
+            if isinstance(value, str):
+                listing_keywords.update(value.lower().split())
+            elif isinstance(value, list):
+                for item in value:
+                    listing_keywords.update(item.lower().split())
+            score = len(description_keywords.intersection(listing_keywords))
+        return score
+
+    scored_listings = [(listing, score_listing(listing)) for listing in filtered_size]
+    scored_listings.sort(key=lambda x: x[1], reverse=True)
+    top_listings = [
+        listing for listing, score in scored_listings[:max_listings] if score > 0
+    ]
+    return top_listings
 
 
 # ── Tool 2: suggest_outfit ────────────────────────────────────────────────────
+
 
 def suggest_outfit(new_item: dict, wardrobe: dict) -> str:
     """
@@ -112,11 +147,30 @@ def suggest_outfit(new_item: dict, wardrobe: dict) -> str:
     Test it from a terminal before you move on:
         python -c "from tools import suggest_outfit; from utils.data_loader import get_example_wardrobe, load_listings; print(suggest_outfit(load_listings()[0], get_example_wardrobe()))"
     """
-    # TODO: replace this with your implementation
-    return ""
+
+    EMPTY_WARDROBE_PROMPT = (
+        "You are a fashion stylist. A user has just thrifted the following item:\n"
+        f"{new_item}\n"
+        "They have no other items in their wardrobe. Give them general styling advice "
+        "for using this item in a single outfit."
+    )
+
+    if not wardrobe.get("items"):
+        return generate(EMPTY_WARDROBE_PROMPT)
+
+    NON_EMPTY_WARDROBE_PROMPT = (
+        "You are a fashion stylist. A user has just thrifted the following item:\n"
+        f"{new_item}\n"
+        "They have the following items in their wardrobe:\n"
+        f"{wardrobe['items']}\n"
+        "Suggest a single outfit that combines the new item with pieces from their wardrobe."
+    )
+
+    return generate(NON_EMPTY_WARDROBE_PROMPT)
 
 
 # ── Tool 3: create_fit_card ───────────────────────────────────────────────────
+
 
 def create_fit_card(outfit: str, new_item: dict) -> str:
     """
@@ -152,5 +206,26 @@ def create_fit_card(outfit: str, new_item: dict) -> str:
     Test it from a terminal before you move on:
         python -c "from tools import create_fit_card; from utils.data_loader import load_listings; print(create_fit_card('jeans and white sneakers', load_listings()[0]))"
     """
-    # TODO: replace this with your implementation
-    return ""
+
+    EMPTY_OUTFIT_PROMPT = (
+        "You are a fashion stylist. A user has just thrifted the following item:\n"
+        f"{new_item}\n"
+        "They have no outfit suggestions. Write a two-to-four sentence caption "
+        "that describes the item and its price and platform, that could be used "
+        "as a social media post with a picture of the item."
+    )
+
+    OUTFIT_PROMPT = (
+        "You are a fashion stylist. A user has just thrifted the following item:\n"
+        f"{new_item}\n"
+        "They have the following outfit suggestion:\n"
+        f"{outfit}\n"
+        "Write a two-to-four sentence caption that describes the item and its price "
+        "and platform, that could be used as a social media post with a picture of the user "
+        "wearing it."
+    )
+
+    if not outfit:
+        return generate(EMPTY_OUTFIT_PROMPT)
+
+    return generate(OUTFIT_PROMPT)
