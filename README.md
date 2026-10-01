@@ -150,7 +150,30 @@ error - filled in case of an error (e.g. if search items fails to find a matched
 **One full query**
 
 ```
-$ python app.py ask '...'
+python app.py ask 'vintage graphic tee under $30' 
+
+  Found:    Y2K Baby Tee — Butterfly Print — $18.0 on depop
+
+  Outfit:   Hey babe! Oh, you scored *so* hard with this Y2K butterfly baby tee—it is giving major early 2000s pop princess vibes, and at $18? Absolute steal. 
+
+Since the baby tee is fitted and cropped with those sweet pink and purple butterfly tones, the key to nailing the silhouette is playing with proportions. Let's lean into that effortless, off-duty model streetwear aesthetic.
+
+Here is your styled look:
+
+### **The Fit: 2000s Streetwear Contrast**
+
+*   **Top:** Y2K Butterfly Baby Tee *(Your new thrift find!)*
+*   **Bottoms:** Baggy straight-leg jeans, dark wash (`w_001`) — *The high waist and baggy fit create that classic tight-top/baggy-bottom Y2K silhouette that looks so effortlessly cool.*
+*   **Outerwear:** Vintage black denim jacket (`w_006`) — *Throw this slightly cropped jacket over your shoulders if it gets chilly, keeping the black accents sharp.*
+*   **Shoes:** Chunky white sneakers (`w_007`) — *To keep the legs looking long and tie in the white base of the tee.*
+*   **Accessories:** Black crossbody bag (`w_010`) — *Sleek, minimal, and practical for carrying your lip gloss and flip phone (or, you know, your actual phone).*
+
+**Why it works:** 
+The dark wash of the baggy jeans grounds the playful, pastel butterfly graphic so it doesn't look too costume-y, while the chunky sneakers and crossbody bag tie the whole streetwear look together. You're ready for coffee runs, thrift shopping, or hanging out with the girls! 🦋✨
+
+  Fit card: Scored this ultimate Y2K butterfly baby tee for just $18 on Depop, and honestly, I’m never taking it off! 🦋✨ Paired it with some baggy denim for that effortless 2000s off-duty model look. Absolute thrift win!
+
+3 model calls this session, 1371 prompt + 463 output tokens
 
 ```
 
