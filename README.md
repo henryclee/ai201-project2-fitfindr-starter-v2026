@@ -245,6 +245,16 @@ The syntax for collecting all of the item's keywords into a set
 - *What I changed:*
 The code for the search_listings tool, primarily in score_listing
 
+**Moment 3**
+- *What I asked for:*
+Assistance with the first branch logic -- when a search fails, giving a response that makes
+suggestions of what to change requires some logic, and multiple queries (ablating the price,
+size)
+- *What came back:*
+AI wrote the code after I approved the plan.
+- *What I changed:*
+The code for the logic was written and tested by the AI.
+
 ---
 
 ## Stretch Features
@@ -283,7 +293,20 @@ delta / delta_pct all None, comparables []
 
 ### A second branch - reject unparseable query
 
-TODO
+**Branch rule:** If the model's parse step returns no description, stop before
+calling `search_listings` and put a message in `session["error"]`. Otherwise —
+with or without a size or max_price — proceed along the happy path to the search.
+
+**Where it lives:** `agent.py::run_agent`, the `if not description:` guard
+between the parse loop and the `search_listings()` call.
+
+**Why it exists:** `search_listings` opens with `description.lower().split()`, so
+a `None` description raises `AttributeError` out of the tool rather than
+returning an empty list. My parse prompt explicitly allows the model to answer
+`null`, so this is an expected outcome, not an exotic one.
+
+Distinct from the empty-search branch: that one fires when the search ran and
+found nothing. This one fires when the search never ran.
 
 ### Style memory
 
