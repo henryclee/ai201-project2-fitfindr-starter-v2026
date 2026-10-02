@@ -123,6 +123,10 @@ If search_listings returns an empty list, put a message in session["error"] and 
 Otherwise, take the first item from the list, and place it in session["selected_item],
 and use it for suggest_outfit
 
+Note, that with the stretch feature fourth tool, the selected item is the highest scoring
+item that is not "overpriced." If no such item exists, then it defaults to the first
+item in the list.
+
 **Where it lives:** `agent.py::run_agent`
 
 **How the query is parsed:** <!-- regex, string splitting, or asking the model — say which -->
@@ -247,10 +251,43 @@ The code for the search_listings tool, primarily in score_listing
 
 ### A fourth tool - compare_price
 
+`compare_price`
+
+- **What it does:**
+Compare's one listing's price against comparable listings in the dataset and 
+returns a price verdict. In this case, comparable means matching on the same
+category, size, and at least one shared style_tag. The verdict is considered
+a "good_deal" if it is more than 10% less than the median price among comparables, 
+and "overpriced" if it is more than 10% more expensive than the median. If there
+are not enough comparables, it is "unknown", otherwise it is "fair."
+
+- **Inputs:**
+new_item: dict - an item from listings
+
+- **Returns:**
+A dict:
+{
+     "item_id":          str,
+     "price":            float,
+     "comparable_count": int,
+     "median_price":     float | None,   # None when comparables are too thin
+     "delta":            float | None,   # price - median, negative = cheaper
+     "delta_pct":        float | None,
+     "verdict":          "good_deal" | "fair" | "overpriced" | "unknown",
+     "comparables":      [ {"id","title","price","platform"}, ... ]  # ≤5, cheapest first
+}
+
+- **When it has nothing:**
+If comparable_count < 3, returns verdict "unknown", median_price /
+delta / delta_pct all None, comparables []
+
 ### A second branch - reject unparseable query
+
+TODO
 
 ### Style memory
 
+TODO
 
 <!-- ═══════════════════════ UNIT 4 — THE TEST ═══════════════════════
 

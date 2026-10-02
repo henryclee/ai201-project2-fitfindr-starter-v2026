@@ -229,3 +229,99 @@ def create_fit_card(outfit: str, new_item: dict) -> str:
         return generate(EMPTY_OUTFIT_PROMPT)
 
     return generate(OUTFIT_PROMPT)
+
+
+# ── Tool 4: Stretch Feature - compare_price ───────────────────────────────────────────────────
+
+
+def compare_price(new_item: dict) -> dict:
+    """
+    Compare the price of the new item with similar items in the listings.
+
+    Args:
+        new_item: a listing dict — the item the user is considering.
+
+    Returns:
+        A dict containing the comparison results, including:
+        "item_id":          str,
+        "price":            float,
+        "comparable_count": int,
+        "median_price":     float | None,   # None when comparables are too thin
+        "delta":            float | None,   # price - median, negative = cheaper
+        "delta_pct":        float | None,
+        "verdict":          "good_deal" | "fair" | "overpriced" | "unknown",
+        "comparables":      [ {"id","title","price","platform"}, ... ]  # ≤5, cheapest first
+
+    If comparable_count < 3, returns verdict "unknown", median_price /
+    delta / delta_pct all None, comparables []
+
+    """
+    listings = load_listings()
+
+    # Filter listings to find comparables based on category and style_tags
+    comparable_listings = [
+        listing
+        for listing in listings
+        if listing["category"] == new_item["category"]
+        and listing["size"] == new_item["size"]
+        and any(tag in new_item["style_tags"] for tag in listing["style_tags"])
+    ]
+
+    comparable_count = len(comparable_listings)
+
+    if comparable_count < 3:
+        return {
+            "item_id": new_item["id"],
+            "price": new_item["price"],
+            "comparable_count": comparable_count,
+            "median_price": None,
+            "delta": None,
+            "delta_pct": None,
+            "verdict": "unknown",
+            "comparables": [],
+        }
+
+    # Sort comparables by price and calculate median
+    comparable_listings.sort(key=lambda x: x["price"])
+    median_price = (
+        (
+            comparable_listings[comparable_count // 2]["price"]
+            + comparable_listings[(comparable_count - 1) // 2]["price"]
+        )
+        / 2
+        if comparable_count % 2 == 0
+        else comparable_listings[comparable_count // 2]["price"]
+    )
+
+    delta = new_item["price"] - median_price
+    delta_pct = (delta / max(median_price, 0.01)) * 100  # Avoid division by zero
+
+    # Determine verdict based on delta percentage
+    if delta_pct < -10:
+        verdict = "good_deal"
+    elif -10 <= delta_pct <= 10:
+        verdict = "fair"
+    else:
+        verdict = "overpriced"
+
+    # Prepare comparables list with limited fields and sorted by price
+    comparables = [
+        {
+            "id": listing["id"],
+            "title": listing["title"],
+            "price": listing["price"],
+            "platform": listing.get("platform"),
+        }
+        for listing in comparable_listings[:5]
+    ]
+
+    return {
+        "item_id": new_item["id"],
+        "price": new_item["price"],
+        "comparable_count": comparable_count,
+        "median_price": median_price,
+        "delta": delta,
+        "delta_pct": delta_pct,
+        "verdict": verdict,
+        "comparables": comparables,
+    }

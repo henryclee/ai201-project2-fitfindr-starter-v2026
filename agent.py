@@ -18,7 +18,7 @@ import re
 
 import config
 import trace
-from tools import search_listings, suggest_outfit, create_fit_card
+from tools import search_listings, suggest_outfit, create_fit_card, compare_price
 from generate import ModelUnavailable, generate
 
 
@@ -142,7 +142,17 @@ def run_agent(query: str, wardrobe: dict) -> dict:
     #   5. Choose an item — the first result is fine. Put it in
     #      session["selected_item"].
 
-    session["selected_item"] = search_results[0]
+    #   Stretch tool call -- We can use the compare_price tool to try to filter out
+    #   "overpriced" items. If all of the items are overpriced, return the best match
+
+    for item in search_results:
+        price_comparison = compare_price(new_item=item)
+        if price_comparison["verdict"] != "overpriced":
+            session["selected_item"] = item
+            break
+
+    if not session["selected_item"]:
+        session["selected_item"] = search_results[0]
 
     #   6. Call suggest_outfit() with the selected item and the wardrobe.
     #      Put the result in session["outfit_suggestion"].
