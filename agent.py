@@ -112,12 +112,38 @@ def run_agent(query: str, wardrobe: dict) -> dict:
 
         break
 
+    # Normalise what came back before any tool sees it. The model sometimes sends
+    # max_price back as "30" or "$30", and `"30"` compared against a listing price
+    # raises a TypeError inside search_listings instead of returning an empty list —
+    # a crash here would swallow the message the branch below exists to write.
+    if isinstance(max_price, str):
+        found_price = re.search(r"\d+(?:\.\d+)?", max_price)
+        max_price = float(found_price.group()) if found_price else None
+    elif max_price is not None:
+        try:
+            max_price = float(max_price)
+        except (TypeError, ValueError):
+            max_price = None
+
+    size = str(size).strip() if size is not None and str(size).strip() else None
+    description = str(description).strip() if description is not None else None
+
     session["parsed"]["description"] = description
     session["parsed"]["size"] = size
     session["parsed"]["max_price"] = max_price
 
     #   4. Call search_listings() with what you parsed.
     #      Put the results in session["search_results"].
+
+    # A description is the one thing search_listings cannot run without, and the
+    # model is allowed to answer null. Catch that before the call, so it reads as
+    # a message to the user instead of an AttributeError out of the tool.
+    if not description:
+        session["error"] = (
+            "I couldn't read a description out of that query, so there was nothing "
+            "to search for. Name the item, e.g. 'vintage graphic tee under $30'."
+        )
+        return session
 
     search_results = search_listings(
         description=session["parsed"]["description"],
@@ -126,18 +152,102 @@ def run_agent(query: str, wardrobe: dict) -> dict:
     )
     session["search_results"] = search_results
 
-    if len(search_results) == 0:
-        session["error"] = (
-            "No listings matched the description in the desired size under "
-            "the maximum price. Try raising max_price or loosening the description."
-        )
-        return session
-
     #      ⚠️ THIS IS THE BRANCH. If nothing came back:
     #           - put a message in session["error"] saying what the user could
     #             change — "No results" is not that message
     #           - return the session
     #           - do NOT call suggest_outfit with nothing
+    #
+    #      Saying *what* to change means finding out which constraint did it, so
+    #      instead of guessing we re-run the search with one constraint lifted at
+    #      a time and read the answer off the results. search_listings() makes no
+    #      model call, so the probes cost a file read each — no quota, no rate
+    #      limit, no extra model latency.
+
+    if len(search_results) == 0:
+        tried = f"'{description}'"
+        if size:
+            tried += f" in size {size}"
+        if max_price is not None:
+            tried += f" under ${max_price:g}"
+
+        # Probe 1 — lift the price ceiling. Still empty means price was innocent
+        # and the size is what nothing exists in.
+        size_probe = (
+            search_listings(description=description, size=size, max_price=None)
+            if size
+            else []
+        )
+        # Probe 2 — lift the size. Still empty means the ceiling is too low.
+        price_probe = (
+            search_listings(description=description, max_price=max_price)
+            if max_price is not None
+            else []
+        )
+        # Probe 3 — lift both. What the words alone can find, and the evidence
+        # (real sizes, real prices) the message quotes back at the user.
+        description_only = search_listings(description=description)
+
+        priced = [
+            item for item in description_only if isinstance(item.get("price"), (int, float))
+        ]
+        closest = min(priced, key=lambda item: item["price"]) if priced else None
+        sizes_on_file = sorted(
+            {str(item["size"]) for item in description_only if item.get("size")}
+        )
+
+        hints = []
+
+        if not description_only:
+            hints.append(
+                f"nothing in the listings matches '{description}' at all, whatever "
+                "the size or price — loosen the wording (try 'tee' or 'top' on its "
+                "own) and keep the rest as it is"
+            )
+        else:
+            if size and not size_probe:
+                hints.append(
+                    f"nothing comes in size {size} — '{description}' does exist in "
+                    f"{', '.join(sizes_on_file[:6]) or 'other sizes'}, so try one of those or leave "
+                    "the size out"
+                )
+
+            if max_price is not None and not price_probe:
+                if closest:
+                    hints.append(
+                        f"nothing is under ${max_price:g} — the cheapest match is "
+                        f"{closest['title']} at ${closest['price']:g} on "
+                        f"{closest.get('platform', 'the listings')}, so raise max_price to about "
+                        f"${closest['price']:g}"
+                    )
+                else:
+                    hints.append(f"nothing is under ${max_price:g}")
+
+            if not hints and size and max_price is not None and size_probe and price_probe:
+                # Each half is fine alone and impossible together — say so, with
+                # the price of one and the sizes of the other.
+                cheapest_in_size = min(size_probe, key=lambda item: item["price"])
+                sizes_in_budget = sorted(
+                    {str(item["size"]) for item in price_probe if item.get("size")}
+                )
+                hints.append(
+                    f"size {size} exists but starts at ${cheapest_in_size['price']:g} "
+                    f"({cheapest_in_size['title']}), and under ${max_price:g} it only "
+                    f"comes in {', '.join(sizes_in_budget[:6]) or 'other sizes'} — you'll have to relax "
+                    "one of the two"
+                )
+
+        if not hints:
+            # Every probe came back with something, which the search above says
+            # it shouldn't. Fall back rather than hand back an empty error.
+            hints.append(
+                "the match is close but not exact — try dropping either the size or "
+                "the price limit"
+            )
+
+        tidy = [hints[0][0].upper() + hints[0][1:]] + hints[1:]
+        session["error"] = f"No listings matched {tried}. " + ". Also, ".join(tidy) + "."
+        return session
 
     #   5. Choose an item — the first result is fine. Put it in
     #      session["selected_item"].
