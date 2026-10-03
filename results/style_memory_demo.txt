@@ -1,0 +1,110 @@
+$ python app.py forget
+Nothing was remembered, so there was nothing to forget.
+
+$ python app.py ask 'vintage graphic tee under $30, size M' --memory
+(style memory on — 0 remembered purchase(s) in data/style_memory.json)
+
+  Found:    Y2K Baby Tee — Butterfly Print — $18.0 on depop
+
+  Outfit:   Hey bestie! Oh, what a score—that Y2K butterfly baby tee is *everything*. For only $18? Absolute steal. 
+
+Since the tee is cropped, fitted, and has those gorgeous soft pink and purple butterfly graphics, we want to play with proportions and really lean into that nostalgic 2000s streetwear vibe. 
+
+Here is your look:
+
+* **Top:** Y2K Baby Tee — Butterfly Print (*New item!*)
+* **Bottoms:** Baggy straight-leg jeans, dark wash (`w_001`)
+* **Outerwear:** Vintage black denim jacket (`w_006`)
+* **Shoes:** Chunky white sneakers (`w_007`)
+* **Accessories:** Black crossbody bag (`w_010`)
+
+### Why this works:
+The magic of this outfit is all in the **silhouette play**. The baby tee is ultra-fitted and cropped, so pairing it with your high-waisted, baggy dark wash jeans creates that quintessential Y2K skater-meets-pop-princess contrast. Throwing the slightly cropped vintage black denim jacket on top adds a layer of effortless cool without hiding the graphic. Tie it all together with your chunky white sneakers to echo the white in the tee, and sling your black crossbody bag over your shoulder for an easy, everyday look that’s ready for iced coffee runs or thrift shopping. 
+
+Go stunt in this fit! 🦋✨
+
+  Fit card: Snagged this absolute dream of a Y2K butterfly baby tee for just $18 on Depop, and I am never taking it off! 🦋✨ Paired it with some baggy denim for the ultimate 2000s streetwear moment. Run, don't walk, to your local thrift—you never know what gems you'll find!
+  + remembered: Y2K Baby Tee — Butterfly Print (lst_002)
+
+3 model calls this session, 1308 prompt + 417 output tokens
+
+$ python app.py wardrobe
+Remembered purchases: /Users/henryclee/Projects/codepath/ai201/ai201-project2-fitfindr-starter-v2026/data/style_memory.json
+
+id       category     name
+------------------------------------------------------------------------------
+lst_002  tops         Y2K Baby Tee — Butterfly Print
+                      Remembered from depop at $18, excellent condition
+
+1 item(s). Clear them with: python app.py forget
+
+$ python app.py ask 'baggy jeans under $40' --memory
+(style memory on — 1 remembered purchase(s) in data/style_memory.json)
+
+  Found:    Baggy Carpenter Jeans — Dark Wash — $36.0 on depop
+
+  Outfit:   Hey! Excellent score on those baggy carpenter jeans—at $36, that dark wash and the utility hammer loop are total 90s gold. Since the jeans have a lot of volume and distinct workwear energy, the trick is to balance out proportions while leaning into that effortless streetwear aesthetic. 
+
+Here is how I would style your new piece using items straight from your wardrobe:
+
+### **The Look: 90s Off-Duty Streetwear**
+
+* **Top:** **White ribbed tank top (`w_003`)** — Tucked in to define your waist (since these sit at the waist) and create a sharp contrast against the heavy, dark indigo denim.
+* **Outerwear (Optional/Layering):** **Vintage black denim jacket (`w_006`)** — Worn open to play with textures and add a little structure over the fitted tank.
+* **Shoes:** **Chunky white sneakers (`w_007`)** — These will stack perfectly over the hems of the baggy carpenter jeans for that authentic 90s skate/streetwear silhouette.
+* **Accessories:** **Black crossbody bag (`w_010`)** to keep it functional and sleek.
+
+**Why it works:** 
+The fitted white ribbed tank creates the ultimate high-low proportion play against the ultra-baggy carpenter jeans. Finishing it off with chunky white sneakers ties the crispness of the tank right down to the floor, making the whole fit look intentional, effortless, and straight out of a 1994 lookbook. 
+
+How are we feeling about this vibe? Ready to take them for a spin?
+
+  Fit card: Scored these vintage baggy carpenter jeans on Depop for just $36, and they are absolute 90s workwear gold. Featuring a rich dark wash and the iconic utility hammer loop, they bring major off-duty streetwear energy to any fit. Utterly obsessed with how effortless and authentic this silhouette feels!
+  + remembered: Baggy Carpenter Jeans — Dark Wash (lst_031)
+
+3 model calls this session, 1428 prompt + 442 output tokens
+
+$ python app.py wardrobe
+Remembered purchases: /Users/henryclee/Projects/codepath/ai201/ai201-project2-fitfindr-starter-v2026/data/style_memory.json
+
+id       category     name
+------------------------------------------------------------------------------
+lst_002  tops         Y2K Baby Tee — Butterfly Print
+                      Remembered from depop at $18, excellent condition
+lst_031  bottoms      Baggy Carpenter Jeans — Dark Wash
+                      Remembered from depop at $36, good condition
+
+2 item(s). Clear them with: python app.py forget
+
+# same query a second time — the write half must not duplicate
+$ python app.py ask 'vintage graphic tee under $30, size M' --memory
+(style memory on — 2 remembered purchase(s) in data/style_memory.json)
+  Found:    Y2K Baby Tee — Butterfly Print — $18.0 on depop
+  (already remembered — nothing new added)
+3 model calls this session, 1468 prompt + 392 output tokens
+
+# --empty-wardrobe still wins, so the failure mode stays testable
+$ python app.py ask 'vintage graphic tee under $30' --memory --empty-wardrobe
+(running with an empty wardrobe)
+(--empty-wardrobe wins over --memory: this run reads and writes nothing)
+  Found:    Y2K Baby Tee — Butterfly Print — $18.0 on depop
+
+$ python app.py wardrobe
+Remembered purchases: /Users/henryclee/Projects/codepath/ai201/ai201-project2-fitfindr-starter-v2026/data/style_memory.json
+
+id       category     name
+------------------------------------------------------------------------------
+lst_002  tops         Y2K Baby Tee — Butterfly Print
+                      Remembered from depop at $18, excellent condition
+lst_031  bottoms      Baggy Carpenter Jeans — Dark Wash
+                      Remembered from depop at $36, good condition
+
+2 item(s). Clear them with: python app.py forget
+
+# session-level view — run_agent() with and without remember=True
+count before: 2
+flagless run -> {"path": "/Users/henryclee/Projects/codepath/ai201/ai201-project2-fitfindr-starter-v2026/data/style_memory.json", "requested": false, "items_before": 0, "items_owned": 10, "used_memory": false, "added": null}
+count after flagless run: 2
+memory run   -> {"path": "/Users/henryclee/Projects/codepath/ai201/ai201-project2-fitfindr-starter-v2026/data/style_memory.json", "requested": true, "items_before": 2, "items_owned": 12, "used_memory": true, "added": {"id": "lst_006", "name": "Graphic Tee \u2014 2003 Tour Bootleg Style", "category": "tops", "colors": ["black"], "style_tags": ["graphic tee", "vintage", "grunge", "streetwear", "band tee"], "notes": "Remembered from depop at $24, good condition"}}
+count after memory run: 3
+selected: lst_006

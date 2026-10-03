@@ -93,3 +93,9 @@ CACHE_DIR = ROOT / ".cache"
 
 DATA_DIR = ROOT / "data"
 RESULTS_DIR = ROOT / "results"
+
+# Style memory — the wardrobe the agent keeps between runs (see memory.py).
+# The file is gitignored on purpose: it is one user's closet, and it rewrites
+# itself on every `ask --memory`. results/ is committed because it records a
+# test that happened; this records what someone bought.
+MEMORY_FILENAME = "style_memory.json"

@@ -78,6 +78,9 @@ does nothing.
 | `python app.py examples` | Queries worth trying, including one that matches nothing |
 | `python app.py ask '...'` | Run the agent on one query — **single quotes** |
 | `python app.py ask` | Keep asking until you press Enter on an empty line |
+| `python app.py ask '...' --memory` | Start from the saved wardrobe, and keep what this run finds |
+| `python app.py wardrobe` | Show the purchases style memory kept between runs |
+| `python app.py forget` | Clear them and start from an empty closet again |
 | `python agent.py` | Runs both example paths — one that matches, one that can't |
 | `python mcp_server.py` | Starts your MCP server — **unit 4** |
 | `python mcp_client.py` | Asks the server what it offers — **unit 4** |
@@ -90,6 +93,7 @@ Useful flags on `ask`:
 |---|---|
 | `--trace` | Print the loop step by step, once you've added the trace calls |
 | `--empty-wardrobe` | Run as a user with nothing saved — one of unit 4's failure modes |
+| `--memory` | Read `data/style_memory.json` and add this run's find to it. Off by default, and `--empty-wardrobe` outranks it |
 
 ---
 

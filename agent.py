@@ -17,6 +17,7 @@ import json
 import re
 
 import config
+import memory
 import trace
 from tools import search_listings, suggest_outfit, create_fit_card, compare_price
 from generate import ModelUnavailable, generate
@@ -48,13 +49,16 @@ def new_session(query: str, wardrobe: dict) -> dict:
         "outfit_suggestion": None,  # what suggest_outfit returned
         "fit_card": None,  # what create_fit_card returned
         "error": None,  # set when the run ended early
+        # Style memory: what was read from disk, and what got written back.
+        # Filled in by run_agent() — see the two memory branches there.
+        "memory": None,
     }
 
 
 # ── planning loop ─────────────────────────────────────────────────────────────
 
 
-def run_agent(query: str, wardrobe: dict) -> dict:
+def run_agent(query: str, wardrobe: dict, remember: bool = False) -> dict:
     """
     Run the loop once and return the finished session.
 
@@ -63,6 +67,11 @@ def run_agent(query: str, wardrobe: dict) -> dict:
                   (e.g. "vintage graphic tee under $30, size M").
         wardrobe: a wardrobe dict — get_example_wardrobe() or
                   get_empty_wardrobe() from utils/data_loader.py.
+        remember: style memory. False (the default) keeps this run entirely in
+                  memory: it reads no files and writes none, and `wardrobe` is
+                  the whole of what the user owns. True makes the run read the
+                  saved wardrobe first, and add its purchase at the end —
+                  see memory.py.
 
     Returns:
         The session dict. **Check session["error"] first** — if it isn't None,
@@ -74,6 +83,35 @@ def run_agent(query: str, wardrobe: dict) -> dict:
 
     #   1. Start a session with new_session().
     session = new_session(query, wardrobe)
+
+    #   1b. Style memory — the READ half. Off unless a caller asks for it, and
+    #       that default is load-bearing: run_eval.py runs every scenario five
+    #       times and serve.py calls run_agent(query, wardrobe) positionally, so
+    #       a default of True would file five phantom purchases into the saved
+    #       wardrobe during the very run that exists to measure it.
+    #
+    #       Branch: memory on AND purchases remembered → plan against the
+    #       wardrobe we were handed *plus* what earlier runs bought, which is what
+    #       the user owns now. Memory off, or nothing remembered → the wardrobe
+    #       we were handed, which is every run that came before this feature.
+    session["memory"] = {
+        "path": str(memory.MEMORY_PATH),
+        "requested": remember,
+        "items_before": 0,  # remembered purchases on disk when the run started
+        "items_owned": len(wardrobe.get("items") or []),  # what we plan against
+        "used_memory": False,
+        "added": None,  # the item saved at the end, if the run got that far
+    }
+
+    if remember:
+        remembered = memory.load_memory()["items"]
+        session["memory"]["items_before"] = len(remembered)
+
+        if remembered:
+            wardrobe = memory.merge_wardrobes(wardrobe, remembered)
+            session["wardrobe"] = wardrobe
+            session["memory"]["items_owned"] = len(wardrobe["items"])
+            session["memory"]["used_memory"] = True
 
     #   2. Count the times round the loop, and call trace.check_iterations(count)
     #      on each one before you go again. It raises when the count passes
@@ -279,6 +317,17 @@ def run_agent(query: str, wardrobe: dict) -> dict:
         outfit=session["outfit_suggestion"], new_item=session["selected_item"]
     )
     session["fit_card"] = fit_card
+
+    #   7b. Style memory — the WRITE half. Only a run that finished gets
+    #       remembered; one that stopped early has no selected item, and saving
+    #       nothing would leave the next suggest_outfit reasoning over a hole.
+    #
+    #       remember_item() returns None when this item is already remembered
+    #       (same listing id), which is the ordinary outcome of re-running a
+    #       query and not a failure — so it lands in the session and the CLI
+    #       says so, rather than duplicating the same piece on every run.
+    if remember and session["error"] is None and session["selected_item"]:
+        session["memory"]["added"] = memory.remember_item(session["selected_item"])
 
     #   8. Return the session.
 

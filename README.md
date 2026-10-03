@@ -255,6 +255,14 @@ AI wrote the code after I approved the plan.
 - *What I changed:*
 The code for the logic was written and tested by the AI.
 
+**Moment 4**
+- *What I asked for:*
+Assistance with planning and implementing stretch feature 3 - Style memory.
+- *What came back:*
+Iterated over planning the feature implementation with AI, then allowed AI to act on this plan.
+- *What I changed:*
+The code and comments for style memory are AI generated.
+
 ---
 
 ## Stretch Features
@@ -310,7 +318,91 @@ found nothing. This one fires when the search never ran.
 
 ### Style memory
 
-TODO
+In the initial implementation, every session with the agent starts with the same
+wardrobe, and thus has no memory of things that have previously been selected. This
+feature adds the ability for agent to remember a wardrobe between runs -- 
+specifically, if memory is on (using the python app.py ask '...' --memory), items 
+that are selected in one round are added to the wardrobe in the next round so they 
+can be included in suggested outfits.
+
+This involves another branch rule -- If `remember` is on **and** 
+`data/style_memory.json` holds at least one remembered purchase, plan against the 
+wardrobe it was handed *plus* those purchases; and after `create_fit_card` returns 
+with `session["error"]` still `None`, append `session["selected_item"]` to that file 
+— unless its `id` is already in it. Otherwise (flag off, nothing remembered yet, 
+or the run stopped early) the run reads no file and writes no file, which is every 
+run that came before this feature.
+
+**Where it lives:** `memory.py` (new), plus two short branches in
+`agent.py::run_agent` — the read at the top of the loop (step 1b) and the write
+after the fit card (step 7b). `app.py` is the front door: `ask --memory`,
+`wardrobe`, `forget`.
+
+**The API** (`memory.py`):
+
+| function | takes | returns |
+|---|---|---|
+| `load_memory()` | — | `{"items": [...]}` in `wardrobe_schema.json` shape. **`{"items": []}` when the file is missing, is not JSON, or has no dict items** — it never raises. |
+| `remember_item(listing)` | one listing dict | the wardrobe item written, or **`None` when that listing `id` is already remembered**, in which case nothing is written |
+| `merge_wardrobes(wardrobe, remembered)` | the run's wardrobe + the remembered items | a new `{"items": [...]}`, handed items first, deduped by `id`; the dict passed in is not mutated |
+| `clear_memory()` | — | how many items were dropped (0 if there was no file) |
+| `count()` | — | int |
+
+A listing maps onto a wardrobe item without translation — the two share the same
+five `category` values and the same `colors` / `style_tags` list shape — so what
+the file gives back goes straight into `suggest_outfit()`. Where it came from and
+what it cost ride along in `notes` (`Remembered from depop at $18, excellent
+condition`), which is the only thing that lets the stylist tell a thrifted find
+from a piece you have owned for years.
+
+**Robustness:** writes go to a `.tmp` file and then `os.replace`, so Ctrl-C
+mid-save leaves either the old wardrobe or the new one, never half of each.
+`data/style_memory.json` is gitignored — it is one user's closet, not evidence.
+`python memory.py` prints the file and where it lives.
+
+**Evidence** — full transcript in `results/style_memory_demo.txt`:
+
+    $ python app.py ask 'vintage graphic tee under $30, size M' --memory
+    (style memory on — 0 remembered purchase(s) in data/style_memory.json)
+      Found:    Y2K Baby Tee — Butterfly Print — $18.0 on depop
+      + remembered: Y2K Baby Tee — Butterfly Print (lst_002)
+
+    $ python app.py ask 'baggy jeans under $40' --memory
+    (style memory on — 1 remembered purchase(s) in data/style_memory.json)
+      Found:    Baggy Carpenter Jeans — Dark Wash — $36.0 on depop
+      Outfit:   ... White ribbed tank top (w_003) ... Chunky white sneakers (w_007) ...
+      + remembered: Baggy Carpenter Jeans — Dark Wash (lst_031)
+
+    $ python app.py ask 'vintage graphic tee under $30, size M' --memory
+    (style memory on — 2 remembered purchase(s) in data/style_memory.json)
+      Found:    Y2K Baby Tee — Butterfly Print — $18.0 on depop
+      (already remembered — nothing new added)
+
+    $ python app.py wardrobe
+    Remembered purchases: .../data/style_memory.json
+
+    id       category     name
+    ------------------------------------------------------------------------------
+    lst_002  tops         Y2K Baby Tee — Butterfly Print
+                          Remembered from depop at $18, excellent condition
+    lst_031  bottoms      Baggy Carpenter Jeans — Dark Wash
+                          Remembered from depop at $36, good condition
+
+    2 item(s). Clear them with: python app.py forget
+
+Same two calls looked at from inside the session (`session["memory"]`, `path`
+left out; the file already held `lst_002` and `lst_031` when this started):
+
+    flagless run -> {"requested": false, "items_before": 0, "items_owned": 10,
+                     "used_memory": false, "added": null}      # file: 2 items → 2
+    memory run   -> {"requested": true,  "items_before": 2, "items_owned": 12,
+                     "used_memory": true,  "added": {"id": "lst_006", ...}}   # 2 → 3
+
+`items_owned` 10 → 12 is the read branch firing; `added: null` on the first row
+while the file still holds 2 items is the guarantee that a flagless run — an
+eval, a `serve.py` request — leaves the state alone.
+
+**Reproduce:** `python app.py forget`, then the four commands above.
 
 <!-- ═══════════════════════ UNIT 4 — THE TEST ═══════════════════════
 

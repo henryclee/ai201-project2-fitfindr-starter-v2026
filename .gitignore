@@ -15,6 +15,10 @@ env/
 # Cached model responses
 .cache/
 
+# Style memory — the wardrobe a user accumulates between runs (memory.py).
+# Per-user state, not evidence: it rewrites itself on every `ask --memory`.
+data/style_memory.json
+
 # OS noise
 .DS_Store
 Thumbs.db
