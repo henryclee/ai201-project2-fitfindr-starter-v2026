@@ -271,7 +271,7 @@ The code and comments for style memory are AI generated.
 
 `compare_price`
 
-- **What it does:**
+**What it does:**
 Compare's one listing's price against comparable listings in the dataset and 
 returns a price verdict. In this case, comparable means matching on the same
 category, size, and at least one shared style_tag. The verdict is considered
@@ -279,10 +279,10 @@ a "good_deal" if it is more than 10% less than the median price among comparable
 and "overpriced" if it is more than 10% more expensive than the median. If there
 are not enough comparables, it is "unknown", otherwise it is "fair."
 
-- **Inputs:**
+**Inputs:**
 new_item: dict - an item from listings
 
-- **Returns:**
+**Returns:**
 A dict:
 {
      "item_id":          str,
@@ -295,9 +295,52 @@ A dict:
      "comparables":      [ {"id","title","price","platform"}, ... ]  # ≤5, cheapest first
 }
 
-- **When it has nothing:**
+**When it has nothing:**
 If comparable_count < 3, returns verdict "unknown", median_price /
 delta / delta_pct all None, comparables []
+
+**Sample Trace**
+Sample run showing the agent calling the compare_price tool
+
+```
+% python app.py ask 'vintage graphic tee under $30, size M' --trace
+[1] parse_query
+      in:  dict with keys: query
+      out: dict with keys: raw_result, cleaned_result
+[2] search_listings
+      in:  dict with keys: description, size, max_price
+      out: dict with keys: search_results
+[3] compare_price
+      in:  dict with keys: new_item
+      out: dict with keys: price_comparison
+[4] suggest_outfit
+      in:  dict with keys: new_item, wardrobe
+      out: dict with keys: outfit_suggestion
+[5] create_fit_card
+      in:  dict with keys: outfit, new_item
+      out: dict with keys: fit_card
+
+  Found:    Y2K Baby Tee — Butterfly Print — $18.0 on depop
+
+  Outfit:   Hey babe, what an absolute score! That Y2K butterfly baby tee is so nostalgic and effortlessly cute for $18. Since it has that fitted, cropped silhouette, the golden rule of styling is to play with proportions—balancing that snug top with something a bit more relaxed on the bottom. 
+
+Here is your go-to outfit formula using pieces straight from your wardrobe:
+
+*   **Top:** Y2K Baby Tee — Butterfly Print *(Your new thrift find!)*
+*   **Bottoms:** Baggy straight-leg jeans, dark wash (`w_001`)
+*   **Outerwear:** Vintage black denim jacket (`w_006`) — *throw this over your shoulders for that effortless model-off-duty vibe*
+*   **Shoes:** Chunky white sneakers (`w_007`)
+*   **Accessories:** Black crossbody bag (`w_010`)
+
+### Why this works:
+The high-waisted, dark wash baggy jeans create that classic 2000s contrast against the fitted baby tee, hugging your waist while keeping the lower half super relaxed. Tying it together with chunky white sneakers keeps the Y2K streetwear energy alive, and the cropped black denim jacket adds a little edge without hiding the butterfly graphic. 
+
+Go stunt in this! ✨🦋
+
+  Fit card: Scored this absolute dream of a Y2K butterfly baby tee for just $18 on Depop, and I am officially never taking it off! 🦋✨ Embracing the ultimate 2000s proportions by pairing it with my favorite baggy denim.
+
+3 model calls this session, 1280 prompt + 365 output tokens
+```
 
 ### A second branch - reject unparseable query
 
@@ -315,6 +358,17 @@ returning an empty list. My parse prompt explicitly allows the model to answer
 
 Distinct from the empty-search branch: that one fires when the search ran and
 found nothing. This one fires when the search never ran.
+
+**Sample Run**
+This run shows the agent takes this branch when the query is nonsensical.
+
+```
+% python app.py ask 'a'
+
+  I couldn't read a description out of that query, so there was nothing to search for. Name the item, e.g. 'vintage graphic tee under $30'.
+
+1 model calls this session, 55 prompt + 30 output tokens
+```
 
 ### Style memory
 

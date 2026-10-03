@@ -139,6 +139,12 @@ def run_agent(query: str, wardrobe: dict, remember: bool = False) -> dict:
         # The model often wraps JSON in a ```json ... ``` fence — strip it.
         cleaned_result = re.sub(r"^```(?:json)?|```$", "", raw_result.strip()).strip()
 
+        trace.step(
+            "parse_query",
+            inputs={"query": query},
+            returned={"raw_result": raw_result, "cleaned_result": cleaned_result},
+        )
+
         try:
             parsed_result = json.loads(cleaned_result)
             description = parsed_result["description"]
@@ -190,6 +196,16 @@ def run_agent(query: str, wardrobe: dict, remember: bool = False) -> dict:
     )
     session["search_results"] = search_results
 
+    trace.step(
+        "search_listings",
+        inputs={
+            "description": description,
+            "size": size,
+            "max_price": max_price,
+        },
+        returned={"search_results": search_results},
+    )
+
     #      ⚠️ THIS IS THE BRANCH. If nothing came back:
     #           - put a message in session["error"] saying what the user could
     #             change — "No results" is not that message
@@ -227,7 +243,9 @@ def run_agent(query: str, wardrobe: dict, remember: bool = False) -> dict:
         description_only = search_listings(description=description)
 
         priced = [
-            item for item in description_only if isinstance(item.get("price"), (int, float))
+            item
+            for item in description_only
+            if isinstance(item.get("price"), (int, float))
         ]
         closest = min(priced, key=lambda item: item["price"]) if priced else None
         sizes_on_file = sorted(
@@ -261,7 +279,13 @@ def run_agent(query: str, wardrobe: dict, remember: bool = False) -> dict:
                 else:
                     hints.append(f"nothing is under ${max_price:g}")
 
-            if not hints and size and max_price is not None and size_probe and price_probe:
+            if (
+                not hints
+                and size
+                and max_price is not None
+                and size_probe
+                and price_probe
+            ):
                 # Each half is fine alone and impossible together — say so, with
                 # the price of one and the sizes of the other.
                 cheapest_in_size = min(size_probe, key=lambda item: item["price"])
@@ -284,7 +308,9 @@ def run_agent(query: str, wardrobe: dict, remember: bool = False) -> dict:
             )
 
         tidy = [hints[0][0].upper() + hints[0][1:]] + hints[1:]
-        session["error"] = f"No listings matched {tried}. " + ". Also, ".join(tidy) + "."
+        session["error"] = (
+            f"No listings matched {tried}. " + ". Also, ".join(tidy) + "."
+        )
         return session
 
     #   5. Choose an item — the first result is fine. Put it in
@@ -295,6 +321,13 @@ def run_agent(query: str, wardrobe: dict, remember: bool = False) -> dict:
 
     for item in search_results:
         price_comparison = compare_price(new_item=item)
+
+        trace.step(
+            "compare_price",
+            inputs={"new_item": item},
+            returned={"price_comparison": price_comparison},
+        )
+
         if price_comparison["verdict"] != "overpriced":
             session["selected_item"] = item
             break
@@ -310,6 +343,15 @@ def run_agent(query: str, wardrobe: dict, remember: bool = False) -> dict:
     )
     session["outfit_suggestion"] = outfit_suggestion
 
+    trace.step(
+        "suggest_outfit",
+        inputs={
+            "new_item": session["selected_item"],
+            "wardrobe": wardrobe,
+        },
+        returned={"outfit_suggestion": outfit_suggestion},
+    )
+
     #   7. Call create_fit_card() with the outfit and the item.
     #      Put the result in session["fit_card"].
 
@@ -317,6 +359,15 @@ def run_agent(query: str, wardrobe: dict, remember: bool = False) -> dict:
         outfit=session["outfit_suggestion"], new_item=session["selected_item"]
     )
     session["fit_card"] = fit_card
+
+    trace.step(
+        "create_fit_card",
+        inputs={
+            "outfit": session["outfit_suggestion"],
+            "new_item": session["selected_item"],
+        },
+        returned={"fit_card": fit_card},
+    )
 
     #   7b. Style memory — the WRITE half. Only a run that finished gets
     #       remembered; one that stopped early has no selected item, and saving
