@@ -69,20 +69,20 @@ mcp = FastMCP("fitfindr", log_level="WARNING")
 
 # ── TODO: uncomment and fill this in ──────────────────────────────────────────
 #
-# @mcp.tool()
-# def search_listings(
-#     description: str,
-#     size: str | None = None,
-#     max_price: float | None = None,
-# ) -> list[dict]:
-#     """
-#     <-- YOUR DESCRIPTION GOES HERE.
-#
-#         One or two sentences. What does this tool do, what does it need, and
-#         what does it give back when it finds nothing? Written for a reader
-#         who cannot see the code.
-#     """
-#     return _search_listings_impl(description, size, max_price)
+@mcp.tool()
+def search_listings(
+    description: str,
+    size: str | None = None,
+    max_price: float | None = None,
+) -> list[dict]:
+    """
+    This tool finds listings that match the given description, size, and maximum price.
+    It returns a list of dictionaries, each representing a listing with relevant details.
+    The `description` parameter is required, while `size` and `max_price` are optional filters.
+    """
+    return _search_listings_impl(description, size, max_price)
+
+
 #
 # ──────────────────────────────────────────────────────────────────────────────
 #
