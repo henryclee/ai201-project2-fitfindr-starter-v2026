@@ -482,7 +482,7 @@ eval, a `serve.py` request — leaves the state alone.
 | 2. impossible query stops early | 5 of 5 | PASS | PASS | PASS | PASS | PASS | MET (5/5) |
 | 3. selected item is correctly passed to suggest_outfit | 5 of 5 | PASS | PASS | PASS | PASS | PASS | MET (5/5) |
 | 4. fit card contains the item's price | 4 of 5 | PASS | PASS | PASS | PASS | PASS | MET (5/5) |
-| 5. query with a size successfully matches | 5 of 5 | FAIL | FAIL | FAIL | FAIL | FAIL | (0/5) |
+| 5. query with a size successfully matches | 5 of 5 | FAIL | FAIL | FAIL | FAIL | FAIL | MISSED (0/5) |
 
 **Real output from one try**, pasted as text, naming the file and function
 that produced it:
@@ -709,10 +709,6 @@ Trace:
       in:  {'description': 'denim jacket', 'size': 'small', 'max_price': 50.0}
       out: No listings matched 'denim jacket' in size small under $50. Nothing comes in size small — 'denim jacket' does …
 ```
-
-
-
-
 ---
 
 ## Verdicts and Diagnoses
@@ -735,15 +731,17 @@ Trace:
 
 | # | Criterion | Target | Verdict | How I decided |
 |---|---|---|---|---|
-| 1 |  |  |  |  |
-| 2 |  |  |  |  |
-| 3 |  |  |  |  |
-| 4 |  |  |  |  |
-| 5 |  |  |  |  |
+| 1 | matching query completes | 4 of 5 | MET (5/5) | 5/5 clears the at least 4 of 5 gate |
+| 2 | impossible query stops early | 5 of 5 | MET (5/5) | 5/5 clears the at least 5 of 5 gate |
+| 3 | selected item is correctly passed to suggest_outfit | 5 of 5 | MET (5/5) | 5/5 clears the at least 5 of 5 gate |
+| 4 | fit card contains the item's price | 4 of 5 | MET (5/5) | 5/5 clears the at least 4 of 5 gate |
+| 5 | query with a size successfully matches | 5 of 5 | MISSED (0/5) | Did not pass on any of the runs |
 
 **Diagnoses**
 
-
+Criterion 5 failed 5/5 times. This is because the search_listing tool call failed to return any listings despite
+there being a valid listing. The tool call worked, but the search_listing function did not correctly find the listing
+with size "S" when looking for size "small" from parse listing.
 
 ---
 
