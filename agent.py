@@ -19,8 +19,9 @@ import re
 import config
 import mcp_client
 import memory
+import no_results
 import trace
-from tools import search_listings, suggest_outfit, create_fit_card, compare_price
+from tools import suggest_outfit, create_fit_card, compare_price
 from generate import ModelUnavailable, generate
 
 
@@ -140,11 +141,11 @@ def run_agent(query: str, wardrobe: dict, remember: bool = False) -> dict:
         # The model often wraps JSON in a ```json ... ``` fence — strip it.
         cleaned_result = re.sub(r"^```(?:json)?|```$", "", raw_result.strip()).strip()
 
-        trace.step(
-            "parse_query",
-            inputs={"query": query},
-            returned={"raw_result": raw_result, "cleaned_result": cleaned_result},
-        )
+        # trace.step(
+        #     "parse_query",
+        #     inputs={"query": query},
+        #     returned={"raw_result": raw_result, "cleaned_result": cleaned_result},
+        # )
 
         try:
             parsed_result = json.loads(cleaned_result)
@@ -199,15 +200,15 @@ def run_agent(query: str, wardrobe: dict, remember: bool = False) -> dict:
         },
     )
 
-    trace.step(
-        "search_listings",
-        inputs={
-            "description": description,
-            "size": size,
-            "max_price": max_price,
-        },
-        returned={"search_results": search_results},
-    )
+    # trace.step(
+    #     "search_listings",
+    #     inputs={
+    #         "description": description,
+    #         "size": size,
+    #         "max_price": max_price,
+    #     },
+    #     returned={"search_results": search_results},
+    # )
 
     #      ⚠️ THIS IS THE BRANCH. If nothing came back:
     #           - put a message in session["error"] saying what the user could
@@ -222,98 +223,23 @@ def run_agent(query: str, wardrobe: dict, remember: bool = False) -> dict:
     #      limit, no extra model latency.
 
     if len(search_results) == 0:
-        tried = f"'{description}'"
-        if size:
-            tried += f" in size {size}"
-        if max_price is not None:
-            tried += f" under ${max_price:g}"
-
-        # Probe 1 — lift the price ceiling. Still empty means price was innocent
-        # and the size is what nothing exists in.
-        size_probe = (
-            search_listings(description=description, size=size, max_price=None)
-            if size
-            else []
-        )
-        # Probe 2 — lift the size. Still empty means the ceiling is too low.
-        price_probe = (
-            search_listings(description=description, max_price=max_price)
-            if max_price is not None
-            else []
-        )
-        # Probe 3 — lift both. What the words alone can find, and the evidence
-        # (real sizes, real prices) the message quotes back at the user.
-        description_only = search_listings(description=description)
-
-        priced = [
-            item
-            for item in description_only
-            if isinstance(item.get("price"), (int, float))
-        ]
-        closest = min(priced, key=lambda item: item["price"]) if priced else None
-        sizes_on_file = sorted(
-            {str(item["size"]) for item in description_only if item.get("size")}
+        diagnosis = no_results.diagnose(
+            description=description,
+            size=size,
+            max_price=max_price,
         )
 
-        hints = []
+        # trace.step(
+        #     "no_results",
+        #     inputs={
+        #         "description": description,
+        #         "size": size,
+        #         "max_price": max_price,
+        #     },
+        #     returned={"diagnosis": diagnosis},
+        # )
 
-        if not description_only:
-            hints.append(
-                f"nothing in the listings matches '{description}' at all, whatever "
-                "the size or price — loosen the wording (try 'tee' or 'top' on its "
-                "own) and keep the rest as it is"
-            )
-        else:
-            if size and not size_probe:
-                hints.append(
-                    f"nothing comes in size {size} — '{description}' does exist in "
-                    f"{', '.join(sizes_on_file[:6]) or 'other sizes'}, so try one of those or leave "
-                    "the size out"
-                )
-
-            if max_price is not None and not price_probe:
-                if closest:
-                    hints.append(
-                        f"nothing is under ${max_price:g} — the cheapest match is "
-                        f"{closest['title']} at ${closest['price']:g} on "
-                        f"{closest.get('platform', 'the listings')}, so raise max_price to about "
-                        f"${closest['price']:g}"
-                    )
-                else:
-                    hints.append(f"nothing is under ${max_price:g}")
-
-            if (
-                not hints
-                and size
-                and max_price is not None
-                and size_probe
-                and price_probe
-            ):
-                # Each half is fine alone and impossible together — say so, with
-                # the price of one and the sizes of the other.
-                cheapest_in_size = min(size_probe, key=lambda item: item["price"])
-                sizes_in_budget = sorted(
-                    {str(item["size"]) for item in price_probe if item.get("size")}
-                )
-                hints.append(
-                    f"size {size} exists but starts at ${cheapest_in_size['price']:g} "
-                    f"({cheapest_in_size['title']}), and under ${max_price:g} it only "
-                    f"comes in {', '.join(sizes_in_budget[:6]) or 'other sizes'} — you'll have to relax "
-                    "one of the two"
-                )
-
-        if not hints:
-            # Every probe came back with something, which the search above says
-            # it shouldn't. Fall back rather than hand back an empty error.
-            hints.append(
-                "the match is close but not exact — try dropping either the size or "
-                "the price limit"
-            )
-
-        tidy = [hints[0][0].upper() + hints[0][1:]] + hints[1:]
-        session["error"] = (
-            f"No listings matched {tried}. " + ". Also, ".join(tidy) + "."
-        )
+        session["error"] = diagnosis["message"]
         return session
 
     #   5. Choose an item — the first result is fine. Put it in
@@ -325,11 +251,11 @@ def run_agent(query: str, wardrobe: dict, remember: bool = False) -> dict:
     for item in search_results:
         price_comparison = compare_price(new_item=item)
 
-        trace.step(
-            "compare_price",
-            inputs={"new_item": item},
-            returned={"price_comparison": price_comparison},
-        )
+        # trace.step(
+        #     "compare_price",
+        #     inputs={"new_item": item},
+        #     returned={"price_comparison": price_comparison},
+        # )
 
         if price_comparison["verdict"] != "overpriced":
             session["selected_item"] = item
@@ -346,14 +272,14 @@ def run_agent(query: str, wardrobe: dict, remember: bool = False) -> dict:
     )
     session["outfit_suggestion"] = outfit_suggestion
 
-    trace.step(
-        "suggest_outfit",
-        inputs={
-            "new_item": session["selected_item"],
-            "wardrobe": wardrobe,
-        },
-        returned={"outfit_suggestion": outfit_suggestion},
-    )
+    # trace.step(
+    #     "suggest_outfit",
+    #     inputs={
+    #         "new_item": session["selected_item"],
+    #         "wardrobe": wardrobe,
+    #     },
+    #     returned={"outfit_suggestion": outfit_suggestion},
+    # )
 
     #   7. Call create_fit_card() with the outfit and the item.
     #      Put the result in session["fit_card"].
@@ -363,14 +289,14 @@ def run_agent(query: str, wardrobe: dict, remember: bool = False) -> dict:
     )
     session["fit_card"] = fit_card
 
-    trace.step(
-        "create_fit_card",
-        inputs={
-            "outfit": session["outfit_suggestion"],
-            "new_item": session["selected_item"],
-        },
-        returned={"fit_card": fit_card},
-    )
+    # trace.step(
+    #     "create_fit_card",
+    #     inputs={
+    #         "outfit": session["outfit_suggestion"],
+    #         "new_item": session["selected_item"],
+    #     },
+    #     returned={"fit_card": fit_card},
+    # )
 
     #   7b. Style memory — the WRITE half. Only a run that finished gets
     #       remembered; one that stopped early has no selected item, and saving

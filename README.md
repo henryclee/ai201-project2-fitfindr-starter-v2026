@@ -127,7 +127,9 @@ Note, that with the stretch feature fourth tool, the selected item is the highes
 item that is not "overpriced." If no such item exists, then it defaults to the first
 item in the list.
 
-**Where it lives:** `agent.py::run_agent`
+**Where it lives:** the branch itself — `if len(search_results) == 0:` ... `return session` —
+is in `agent.py::run_agent`. The sentence it puts in `session["error"]` is built by
+`no_results.py::diagnose`, which `run_agent` calls from inside that branch.
 
 **How the query is parsed:** <!-- regex, string splitting, or asking the model — say which -->
 The query is sent to generate with a prompt asking for a JSON object including keys for 
