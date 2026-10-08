@@ -282,6 +282,14 @@ Iterated over planning the feature implementation with AI, then allowed AI to ac
 - *What I changed:*
 The code and comments for style memory are AI generated.
 
+**Moment 5**
+- *What I asked for:*
+Assistance with planning and implementing a refactor for search_listings.
+- *What came back:*
+Iterated over planning the feature implementation with AI, then allowed AI to act on this plan.
+- *What I changed:*
+The code and comments for search_listings, as well as the unit tests, are AI generated.
+
 ---
 
 ## Stretch Features
@@ -1224,8 +1232,7 @@ By making search_listings more robust (instead of just a string search) to diffe
 <!-- For each criterion still missed: what you'd do, and why you stopped where
      you did. "I ran out of time" is fine if it's true. Pretending nothing is
      left is not. -->
-
-
+After the fix in Milestone 5, all 5 criteria now pass.
 
 <!-- ═════════════════════════════════════════════════════════════════════
 
