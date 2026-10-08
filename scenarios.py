@@ -28,12 +28,33 @@ SCENARIOS = [
         "wardrobe": "example",
         "criterion": 2,
     },
+    # {
+    #     # A user with nothing saved. One of unit 4's three failure modes.
+    #     "name": "empty wardrobe",
+    #     "query": "denim jacket under $50",
+    #     "wardrobe": "empty",
+    #     "criterion": None,
+    # },
     {
-        # A user with nothing saved. One of unit 4's three failure modes.
-        "name": "empty wardrobe",
-        "query": "denim jacket under $50",
-        "wardrobe": "empty",
-        "criterion": None,
+        # A query that matches at least one listing. Criterion 3 - state.
+        "name": "selected item is correctly passed to suggest_outfit",
+        "query": "vintage blue jeans under $40",
+        "wardrobe": "example",
+        "criterion": 3,
+    },
+    {
+        # A query that matches at least one listing. Criterion 4 - fit card.
+        "name": "fit card contains the item's price",
+        "query": "oversized sweatshirt under $25",
+        "wardrobe": "example",
+        "criterion": 4,
+    },
+    {
+        # A query with a size should be able to match. Criterion 5 - search listings.
+        "name": "query with a size successfully matches",
+        "query": "small denim jacket under $50",
+        "wardrobe": "example",
+        "criterion": 5,
     },
     # TODO: add what your criteria 3, 4 and 5 need.
     #

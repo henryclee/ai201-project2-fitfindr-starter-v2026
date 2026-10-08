@@ -200,6 +200,8 @@ def run_agent(query: str, wardrobe: dict, remember: bool = False) -> dict:
         },
     )
 
+    session["search_results"] = search_results
+
     trace.step(
         "MCP tool call search_listings",
         inputs=str(
@@ -209,7 +211,7 @@ def run_agent(query: str, wardrobe: dict, remember: bool = False) -> dict:
                 "max_price": session["parsed"]["max_price"],
             }
         ),
-        returned=search_results,
+        returned=session["search_results"],
     )
 
     #      ⚠️ THIS IS THE BRANCH. If nothing came back:
@@ -224,7 +226,7 @@ def run_agent(query: str, wardrobe: dict, remember: bool = False) -> dict:
     #      model call, so the probes cost a file read each — no quota, no rate
     #      limit, no extra model latency.
 
-    if len(search_results) == 0:
+    if len(session["search_results"]) == 0:
         diagnosis = no_results.diagnose(
             description=description,
             size=size,
@@ -252,7 +254,7 @@ def run_agent(query: str, wardrobe: dict, remember: bool = False) -> dict:
     #   Stretch tool call -- We can use the compare_price tool to try to filter out
     #   "overpriced" items. If all of the items are overpriced, return the best match
 
-    for item in search_results:
+    for item in session["search_results"]:
         price_comparison = compare_price(new_item=item)
 
         trace.step(

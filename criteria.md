@@ -83,6 +83,7 @@ session["selected_item"]["id"] == new_item["id"]
      mentions the price? Two different items producing the same opening
      sentence? A card longer than a caption anyone would post? Any of those can
      be turned into a number. -->
+
 Given a query that matches at least one listing, the fit card contains the 
 selected item’s exact price as a number or currency amount — at least 4 of 5 tries.
 
@@ -104,12 +105,22 @@ the desired information, like price, consistently.
 Given an empty wardrobe,  the fit card does not claim the user owns any garment 
 other than the selected item — at least 4 of 5 tries.
 
+> **Revised in unit 4**
+> Given a query with a size constraint that matches at least one listing, 
+>the agent should select a valid listing - on 5 of 5 tries.
+> **Why revised**
+> The original criteria was too easy, and passed trivially
+
 **Why this target:**
 With an empty wardrobe, the photo shows only the selected item, so the caption 
 should describe that item and may suggest styling ideas, but it should not falsely 
 claim the user owns other garments. I chose 4 of 5 because the caption is 
 model-generated and may occasionally include possessive language about items 
 the user doesn’t have.
+
+> **Revised version**
+>The agent should be able to disambiguate size (e.g. medium == M), or otherwise it
+>is largely useless.
 
 ---
 

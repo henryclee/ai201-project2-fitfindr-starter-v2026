@@ -478,18 +478,240 @@ eval, a `serve.py` request — leaves the state alone.
 
 | Criterion | Target | Try 1 | Try 2 | Try 3 | Try 4 | Try 5 | Verdict |
 |---|---|---|---|---|---|---|---|
-| 1.  |  |  |  |  |  |  |  |
-| 2.  |  |  |  |  |  |  |  |
-| 3.  |  |  |  |  |  |  |  |
-| 4.  |  |  |  |  |  |  |  |
-| 5.  |  |  |  |  |  |  |  |
+| 1. matching query completes | 4 of 5 | PASS | PASS | PASS | PASS | PASS | MET (5/5) |
+| 2. impossible query stops early | 5 of 5 | PASS | PASS | PASS | PASS | PASS | MET (5/5) |
+| 3. selected item is correctly passed to suggest_outfit | 5 of 5 | PASS | PASS | PASS | PASS | PASS | MET (5/5) |
+| 4. fit card contains the item's price | 4 of 5 | PASS | PASS | PASS | PASS | PASS | MET (5/5) |
+| 5. query with a size successfully matches | 5 of 5 | FAIL | FAIL | FAIL | FAIL | FAIL | (0/5) |
 
 **Real output from one try**, pasted as text, naming the file and function
 that produced it:
 
-```
+Source: `results/run_2026-10-08_1114.md` 
+Produced by `run_eval.py::main`
+
+### matching query completes
+
+- Query: `vintage graphic tee under $30`
+- Wardrobe: example
+
+**Try 1**
+
+- stopped early: no
+- selected_item: Y2K Baby Tee — Butterfly Print ($18.0, depop)
+- search_results: 0
+
+Outfit suggestion:
 
 ```
+Omg, what an absolute score! That Y2K butterfly baby tee is so nostalgic and effortlessly cute. Since it has a fitted, cropped silhouette with those lovely pink and purple tones, we want to play with proportions and lean right into that early 2000s model-off-duty vibe.
+
+Here is your styled look using pieces straight from your wardrobe:
+
+### **The Fit: 2000s Streetwear Contrast**
+
+*   **Top:** Y2K Butterfly Baby Tee (Your new thrift find!)
+*   **Bottoms:** Baggy straight-leg jeans, dark wash (`w_001`) — *The tight top + baggy bottom silhouette is peak Y2K.*
+*   **Outerwear:** Vintage black denim jacket (`w_006`) — *Throw this on over your shoulders or wear it open to add a little structure and edge.*
+*   **Shoes:** Chunky white sneakers (`w_007`) — *Keeps the fit grounded, sporty, and super comfortable for walking around.*
+*   **Accessories:** Black crossbody bag (`w_010`) — *Sleek, minimal, and keeps your hands free while tying the black accents of the jacket together.*
+
+**Why it works:** 
+The fitted crop of the baby tee balances out the high-waisted, relaxed fit of the dark wash jeans. Tossing on the slightly cropped vintage black denim jacket adds a cool denim-on-denim texture moment without hiding the butterfly graphic, and the chunky sneakers pull the whole streetwear aesthetic together. You're ready for iced coffee runs or a vintage market crawl! 🦋✨
+```
+
+Fit card:
+
+```
+Scored this absolute dream of a Y2K butterfly baby tee for just $18 on Depop, and I’m officially obsessed! Paired it with some baggy denim and chunky sneakers for the ultimate 2000s streetwear vibe. 🦋✨
+```
+
+Trace:
+
+```
+[1] parse_query
+      in:  vintage graphic tee under $30
+      out: {   "description": "vintage graphic tee",   "size": null,   "max_price": 30.0 }
+[2] MCP tool call search_listings
+      in:  {'description': 'vintage graphic tee', 'size': None, 'max_price': 30.0}
+      out: 10 items: Y2K Baby Tee — Butterfly Print, Graphic Tee — 2003 Tour Bootleg Style, Vintage Band Tee — Faded Grey … +7 more
+[3] compare_price
+      in:  {'id': 'lst_002', 'title': 'Y2K Baby Tee — Butterfly Print', 'description': 'Super cute early 2000s baby tee w…
+      out: fair
+[4] suggest_outfit
+      in:  new_item: {'id': 'lst_002', 'title': 'Y2K Baby Tee — Butterfly Print', 'description': 'Super cute early 2000s …
+      out: Omg, what an absolute score! That Y2K butterfly baby tee is so nostalgic and effortlessly cute. Since it has a…
+[5] create_fit_card
+      in:  new_item: {'id': 'lst_002', 'title': 'Y2K Baby Tee — Butterfly Print', 'description': 'Super cute early 2000s …
+      out: Scored this absolute dream of a Y2K butterfly baby tee for just $18 on Depop, and I’m officially obsessed! Pai…
+```
+
+### impossible query stops early
+
+- Query: `designer ballgown size XXS under $5`
+- Wardrobe: example
+
+**Try 1**
+
+- stopped early: yes — No listings matched 'designer ballgown' in size XXS under $5. Nothing in the listings matches 'designer ballgown' at all, whatever the size or price — loosen the wording (try 'tee' or 'top' on its own) and keep the rest as it is.
+- selected_item: (none)
+- search_results: 0
+
+Trace:
+
+```
+[1] parse_query
+      in:  designer ballgown size XXS under $5
+      out: {   "description": "designer ballgown",   "size": "XXS",   "max_price": 5 }
+[2] MCP tool call search_listings
+      in:  {'description': 'designer ballgown', 'size': 'XXS', 'max_price': 5.0}
+      out: [] (empty)
+[3] no_results
+      in:  {'description': 'designer ballgown', 'size': 'XXS', 'max_price': 5.0}
+      out: No listings matched 'designer ballgown' in size XXS under $5. Nothing in the listings matches 'designer ballgo…
+```
+
+### selected item is correctly passed to suggest_outfit
+
+- Query: `vintage blue jeans under $40`
+- Wardrobe: example
+
+**Try 1**
+
+- stopped early: no
+- selected_item: Vintage Levi's 501 Jeans — Medium Wash ($38.0, depop)
+- search_results: 0
+
+Outfit suggestion:
+
+```
+Hey! First of all, incredible score on those vintage Levi's 501s—$38 for a classic medium wash in that condition is an absolute steal. 
+
+Since 501s are the ultimate versatile baseline, I’ve put together an effortless, streetwear-leaning look using pieces you already own. Here is your recipe for the perfect casual-cool outfit:
+
+### **The Outfit Formula: 90s Off-Duty Streetwear**
+
+*   **Top:** **White ribbed tank top (`w_003`)** tucked in to define your waist against the straight-leg cut of the 501s.
+*   **Outerwear:** Layer the **Oversized grey crewneck sweatshirt (`w_004`)** right over the tank. Since it drops below the hip, let it slouch loosely for that lived-in, effortless drape. 
+*   **Footwear:** **Chunky white sneakers (`w_007`)** to tie in the crisp white of the tank and give the hems of the jeans that ideal slight break/pooling effect.
+*   **Accessories:** **Black crossbody bag (`w_010`)** for a sleek, everyday finish.
+
+### **Why it works:**
+This look plays on high-low proportions. The fitted white tank contrasts beautifully with the slouchy, oversized grey crewneck, while the vintage medium-wash denim bridges the gap between classic Americana and modern streetwear. It’s comfortable, timeless, and lets those newly thrifted 501s take center stage!
+```
+
+Fit card:
+
+```
+Scored these vintage Levi's 501s in the perfect medium wash for just $38 over on Depop, and they are officially my new daily uniform! Nothing beats classic denim with that lived-in vintage fade. 👖✨
+```
+
+Trace:
+
+```
+[1] parse_query
+      in:  vintage blue jeans under $40
+      out: {   "description": "vintage blue jeans",   "size": null,   "max_price": 40 }
+[2] MCP tool call search_listings
+      in:  {'description': 'vintage blue jeans', 'size': None, 'max_price': 40.0}
+      out: 10 items: Vintage Levi's 501 Jeans — Medium Wash, Baggy Carpenter Jeans — Dark Wash, High-Waisted Denim Shorts — Cutoff … +7 more
+[3] compare_price
+      in:  {'id': 'lst_001', 'title': "Vintage Levi's 501 Jeans — Medium Wash", 'description': 'Classic 501s in a perfect…
+      out: unknown
+[4] suggest_outfit
+      in:  new_item: {'id': 'lst_001', 'title': "Vintage Levi's 501 Jeans — Medium Wash", 'description': 'Classic 501s in…
+      out: Hey! First of all, incredible score on those vintage Levi's 501s—$38 for a classic medium wash in that conditi…
+[5] create_fit_card
+      in:  new_item: {'id': 'lst_001', 'title': "Vintage Levi's 501 Jeans — Medium Wash", 'description': 'Classic 501s in…
+      out: Scored these vintage Levi's 501s in the perfect medium wash for just $38 over on Depop, and they are officiall…
+```
+
+### fit card contains the item's price
+
+- Query: `oversized sweatshirt under $25`
+- Wardrobe: example
+
+**Try 1**
+
+- stopped early: no
+- selected_item: Oversized Crewneck Sweatshirt — Vintage Navy ($20.0, thredUp)
+- search_results: 0
+
+Outfit suggestion:
+
+```
+Hey! Oh, what a find—you can *never* have too many perfectly faded vintage crewnecks, and that navy wash is timeless. At $20, that’s an absolute steal for something with that genuine, lived-in character. 
+
+Since the sweatshirt is an XL and fits intentionally oversized, the trick is to balance out that volume so you look effortlessly cool, not swallowed whole. 
+
+Here is your go-to look using pieces straight from your wardrobe:
+
+### **The Outfit: Casual Streetwear Contrast**
+
+*   **Top:** Your new **Oversized Crewneck Sweatshirt (Vintage Navy)** layered loosely over the **White ribbed tank top** (let just a tiny peek of the white hem or collar show if you want some dimension).
+*   **Bottoms:** **Wide-leg khaki trousers** (`w_002`)
+*   **Shoes:** **Chunky white sneakers** (`w_007`)
+*   **Accessories:** **Black crossbody bag** (`w_010`)
+
+### **Why This Works:**
+Pairing the faded navy with the tan/khaki of the wide-leg trousers gives you an incredible, effortless earth-tone and vintage color palette. Because the sweatshirt and the trousers both have a relaxed, roomy fit, it leans into that cool, laid-back skater/minimalist streetwear aesthetic. Tossing on the chunky white sneakers ties the whole fit together and echoes the crispness of the white tank underneath, while the black crossbody bag keeps it functional for everyday wear. 
+
+How are we feeling about this vibe? Ready to wear it out?
+```
+
+Fit card:
+
+```
+Scored the ultimate vintage faded navy crewneck for just $20 on thredUp, and honestly, I might never take it off. There’s nothing quite like that genuine, lived-in wash and oversized fit. ⚓️✨
+```
+
+Trace:
+
+```
+[1] parse_query
+      in:  oversized sweatshirt under $25
+      out: {   "description": "sweatshirt",   "size": "oversized",   "max_price": 25.0 }
+[2] MCP tool call search_listings
+      in:  {'description': 'sweatshirt', 'size': 'oversized', 'max_price': 25.0}
+      out: 1 items: Oversized Crewneck Sweatshirt — Vintage Navy
+[3] compare_price
+      in:  {'id': 'lst_012', 'title': 'Oversized Crewneck Sweatshirt — Vintage Navy', 'description': 'Perfectly faded nav…
+      out: unknown
+[4] suggest_outfit
+      in:  new_item: {'id': 'lst_012', 'title': 'Oversized Crewneck Sweatshirt — Vintage Navy', 'description': 'Perfectly…
+      out: Hey! Oh, what a find—you can *never* have too many perfectly faded vintage crewnecks, and that navy wash is ti…
+[5] create_fit_card
+      in:  new_item: {'id': 'lst_012', 'title': 'Oversized Crewneck Sweatshirt — Vintage Navy', 'description': 'Perfectly…
+      out: Scored the ultimate vintage faded navy crewneck for just $20 on thredUp, and honestly, I might never take it o…
+```
+
+### query with a size successfully matches
+
+- Query: `small denim jacket under $50`
+- Wardrobe: example
+
+**Try 1**
+
+- stopped early: yes — No listings matched 'denim jacket' in size small under $50. Nothing comes in size small — 'denim jacket' does exist in M, S, W27, W28, W30 L30, so try one of those or leave the size out.
+- selected_item: (none)
+- search_results: 0
+
+Trace:
+
+```
+[1] parse_query
+      in:  small denim jacket under $50
+      out: {   "description": "denim jacket",   "size": "small",   "max_price": 50 }
+[2] MCP tool call search_listings
+      in:  {'description': 'denim jacket', 'size': 'small', 'max_price': 50.0}
+      out: [] (empty)
+[3] no_results
+      in:  {'description': 'denim jacket', 'size': 'small', 'max_price': 50.0}
+      out: No listings matched 'denim jacket' in size small under $50. Nothing comes in size small — 'denim jacket' does …
+```
+
+
+
 
 ---
 
