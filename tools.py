@@ -23,6 +23,7 @@ the description has to say what is *in* the list.
 import config  # noqa: F401 — you'll use this in search_listings
 from generate import generate
 from utils.data_loader import load_listings
+from utils.sizes import size_matches
 
 
 # ── Tool 1: search_listings ───────────────────────────────────────────────────
@@ -44,15 +45,32 @@ def search_listings(
         description: keywords describing what the user wants
                      (e.g. "vintage graphic tee").
         size:        a size string to filter by, or None to skip size filtering.
-                     Match case-insensitively — "M" should match "S/M".
 
-                     ⚠️ Read the sizes in the data before you reach for a plain
-                     substring test. `"s" in "us 9"` is True, and so is
-                     `"l" in "xl"`. A filter that returns shoes when someone
-                     asked for a small top reads like a broken search, and it
-                     will quietly cost you in unit 4 when you test criterion 1.
-                     What counts as a size match is part of your spec — decide
-                     it and write it into your Tool Inventory.
+                     What counts as a match (see utils/sizes.py, which owns the
+                     rules): both sides are normalised into a family — alpha
+                     (S/M/L/XL), one size, waist, shoe — and a listing matches
+                     when it is in a compatible family AND shares a label with
+                     the request. So "small" finds "S", "medium" finds "S/M",
+                     "w30" finds "W30 L30", and "size 8" finds "US 8".
+
+                     Strict on purpose, in both directions. Different families
+                     never match, so "s" does not return the US 7 shoes and "l"
+                     does not return the W30 L30 jeans. The ladder never slides:
+                     "XS" does not return an S, and "8" does not return a US 8.5.
+                     The one tolerance is a "One Size" listing, which claims to
+                     fit most and so answers an alpha request — for S, M or L
+                     only. XS and XL are outside what "fits most" promises, and
+                     a one-size hit is ranked below every true label match.
+
+                     Order of the results: size tier, then keyword overlap, then
+                     price ascending — so a listing labelled S comes before an
+                     S/M, which comes before a One Size, and the tie-break never
+                     depends on the order of rows in the JSON file.
+
+                     A size the parser can't read ("free spirit") is treated as
+                     no size filter rather than a crash or a false empty. An
+                     empty list therefore still means "nothing in that size",
+                     which is what no_results.py probes to name the wall.
         max_price:   maximum price, inclusive, or None to skip price filtering.
 
     Returns:
@@ -70,11 +88,15 @@ def search_listings(
 
     TODO:
         1. Load every listing with load_listings().
-        2. Filter by max_price and by size, when each is provided.
+        2. Filter by max_price and by size, when each is provided. Size goes
+           through utils.sizes.size_matches(), not a substring test.
         3. Score what's left by keyword overlap with `description`.
         4. Drop anything scoring zero.
-        5. Sort by score, highest first, and return the listing dicts —
-           at most config.SEARCH_RESULT_LIMIT of them.
+        5. Sort by size tier, then score, then price, and return the listing
+           dicts — at most config.SEARCH_RESULT_LIMIT of them.
+
+    See test_size_matching.py for the pairs this accepts and refuses, and
+    `python -m utils.sizes` to see how the matcher reads every size on file.
 
     Test it from a terminal before you move on:
         python -c "from tools import search_listings; print(search_listings('graphic tee', max_price=30))"
@@ -82,20 +104,10 @@ def search_listings(
     max_listings = config.SEARCH_RESULT_LIMIT
 
     listings = load_listings()
-    filtered_price = [
-        listing
-        for listing in listings
-        if max_price is None or listing["price"] <= max_price
-    ]
-    filtered_size = [
-        listing
-        for listing in filtered_price
-        if size is None or (listing["size"] and size.lower() in listing["size"].lower())
-    ]
+    description_keywords = set(str(description).lower().split())
 
-    description_keywords = set(description.lower().split())
-
-    def score_listing(listing) -> int:
+    def score_listing(listing: dict) -> int:
+        """How many of the query's words this listing repeats, across any field."""
         listing_keywords = set()
         keys = ["title", "description", "style_tags", "colors", "brand"]
         for key in keys:
@@ -104,16 +116,44 @@ def search_listings(
                 listing_keywords.update(value.lower().split())
             elif isinstance(value, list):
                 for item in value:
-                    listing_keywords.update(item.lower().split())
-            score = len(description_keywords.intersection(listing_keywords))
-        return score
+                    if isinstance(item, str):
+                        listing_keywords.update(item.lower().split())
+        return len(description_keywords & listing_keywords)
 
-    scored_listings = [(listing, score_listing(listing)) for listing in filtered_size]
-    scored_listings.sort(key=lambda x: x[1], reverse=True)
-    top_listings = [
-        listing for listing, score in scored_listings[:max_listings] if score > 0
-    ]
-    return top_listings
+    def usable_price(listing: dict) -> float | None:
+        """The price as a number, or None when the listing doesn't carry one."""
+        price = listing.get("price")
+        return float(price) if isinstance(price, (int, float)) else None
+
+    ranked = []
+    for listing in listings:
+        price = usable_price(listing)
+        if max_price is not None and (price is None or price > max_price):
+            continue
+
+        # size_matches returns None when the listing's size cannot answer the
+        # request — that is the filter. The tier it returns when it can is what
+        # decides the order: a true S beats an S/M, which beats a One Size.
+        tier = 0 if size is None else size_matches(size, listing.get("size"))
+        if tier is None:
+            continue
+
+        score = score_listing(listing)
+        if score <= 0:
+            continue
+
+        ranked.append(
+            (-tier, -score, price if price is not None else float("inf"), listing)
+        )
+
+    # Size tier first, then keyword overlap, then price. Sorting on the key tuple
+    # keeps the listing dicts out of any comparison. The loop in agent.py reads
+    # result[0], so this ordering is the difference between "a small denim
+    # jacket" and "some denim jacket". Zero scores are dropped before the slice,
+    # not after it — slicing first could hand back fewer than the limit while
+    # real matches sat behind the ones that scored nothing.
+    ranked.sort(key=lambda row: row[:3])
+    return [row[3] for row in ranked[:max_listings]]
 
 
 # ── Tool 2: suggest_outfit ────────────────────────────────────────────────────

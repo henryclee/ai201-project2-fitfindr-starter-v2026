@@ -122,6 +122,16 @@ the user doesn’t have.
 >The agent should be able to disambiguate size (e.g. medium == M), or otherwise it
 >is largely useless.
 
+> **Fix attempted (unit 4)**
+> The size filter was a substring test, so it failed in both directions: "small"
+> never matched the listing "S" (the 0/5 above), and "s" matched the shoe size
+> "US 7". Matching now goes through `utils/sizes.py`: both sides are normalised
+> into a size family (alpha / one size / waist / shoe) and must share a label,
+> with "One Size" answering S/M/L only and ranked below true labels. Results are
+> ordered by match tier, so the listing actually in the requested size is the one
+> `run_agent` picks. Pinned by `test_size_matching.py` (24 tests, no model call).
+> **Outstanding:** the eval re-run that moves the MISSED verdict is not done yet.
+
 ---
 
 <!-- ─────────────────────────────────────────────────────────────────────────

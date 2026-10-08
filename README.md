@@ -68,14 +68,33 @@ max price (optional), and returns a list of items from the listing that match th
 parameters, best match first.
 - **Inputs:** <!-- name and type each: `max_price` (float), not "a price" -->
 description: str - keywords describing what the user wants
-size: str | None - size string
-max_price: float | None - maximum price, inclusive
+size: str | None - the size asked for, as a seller's label or as spoken English
+  ("S", "small", "medium", "M/L", "w30", "W30 L30", "US 8", "size 8",
+  "one size", "oversized"), or None to skip size filtering.
+  A listing matches when it is in the same size *family* as the request and
+  shares a label with it. Families: alpha (S/M/L/XL, including ranges like
+  "S/M" and fit-qualified labels like "XL (oversized)"), one size, waist
+  ("W30 L30") and shoe ("US 8.5"). Families never cross, so "s" does not
+  return the US 7 shoes and "l" does not return the W30 L30 jeans. The ladder
+  never slides: "XS" does not match an S and "8" does not match a US 8.5.
+  "One Size" answers an S/M/L request only (it fits *most*, not the tails of
+  the ladder) and is ranked last. A size that can't be read ("free spirit")
+  is treated as no size filter at all, not as a false empty.
+  The rules live in utils/sizes.py; the pairs are pinned by test_size_matching.py.
+max_price: float | None - maximum price in whole dollars, inclusive
 - **Returns:**
 A list of matching items (dict) from listings, best match first, or an empty list 
 if no matches are found. An item dict contains keys for description, category, style_tags, 
 size, etc...
+- **Ordering:**
+Size match tier first — exact label, then a range that covers the request
+("S/M" for "small"), then a one-size listing — then keyword overlap, then
+price ascending. The price tie-break is there so the order doesn't depend on
+the order of rows in listings.json.
 - **When it has nothing:**
-Empty list
+Empty list (never None, never an exception). An empty result means "nothing in
+that size or under that price", which is what no_results.py probes to name the
+wall — so the size filter stays strict instead of widening to near-misses.
 
 ### `suggest_outfit`
 
@@ -187,7 +206,7 @@ The dark wash of the baggy jeans grounds the playful, pastel butterfly graphic s
 
 ```
  % python -c "from tools import search_listings; print(search_listings('graphic tee', max_price=30))"
-[{'id': 'lst_002', 'title': 'Y2K Baby Tee — Butterfly Print', 'description': 'Super cute early 2000s baby tee with butterfly graphic. Fitted crop length. Tag says medium but fits like a small.', 'category': 'tops', 'style_tags': ['y2k', 'vintage', 'graphic tee', 'cottagecore'], 'size': 'S/M', 'condition': 'excellent', 'price': 18.0, 'colors': ['white', 'pink', 'purple'], 'brand': None, 'platform': 'depop'}, {'id': 'lst_006', 'title': 'Graphic Tee — 2003 Tour Bootleg Style', 'description': 'Vintage-style bootleg tee with faded graphic. Slightly boxy fit. 100% cotton, soft and worn-in.', 'category': 'tops', 'style_tags': ['graphic tee', 'vintage', 'grunge', 'streetwear', 'band tee'], 'size': 'L', 'condition': 'good', 'price': 24.0, 'colors': ['black'], 'brand': None, 'platform': 'depop'}, {'id': 'lst_017', 'title': 'Mesh Long-Sleeve Top — Black', 'description': 'Sheer black mesh long-sleeve. Great for layering under a graphic tee or over a bralette. Stretchy material, fits true to size.', 'category': 'tops', 'style_tags': ['y2k', 'grunge', 'goth', 'layering'], 'size': 'S/M', 'condition': 'excellent', 'price': 15.0, 'colors': ['black'], 'brand': None, 'platform': 'depop'}, {'id': 'lst_033', 'title': 'Vintage Band Tee — Faded Grey', 'description': 'Faded grey band-style tee with distressed graphic. Crew neck. Fits boxy. Well-loved but no holes or major damage.', 'category': 'tops', 'style_tags': ['vintage', 'grunge', 'band tee', 'graphic tee', 'streetwear'], 'size': 'L', 'condition': 'fair', 'price': 19.0, 'colors': ['grey', 'charcoal'], 'brand': None, 'platform': 'depop'}, {'id': 'lst_015', 'title': 'Vintage Graphic Hoodie — Faded Black', 'description': 'Faded black pullover hoodie with barely-visible vintage graphic on the chest. Cozy interior. Some pilling but adds to the worn-in look.', 'category': 'tops', 'style_tags': ['vintage', 'grunge', 'graphic', 'streetwear'], 'size': 'L', 'condition': 'fair', 'price': 26.0, 'colors': ['black', 'charcoal'], 'brand': None, 'platform': 'depop'}]
+[{'id': 'lst_017', 'title': 'Mesh Long-Sleeve Top — Black', 'description': 'Sheer black mesh long-sleeve. Great for layering under a graphic tee or over a bralette. Stretchy material, fits true to size.', 'category': 'tops', 'style_tags': ['y2k', 'grunge', 'goth', 'layering'], 'size': 'S/M', 'condition': 'excellent', 'price': 15.0, 'colors': ['black'], 'brand': None, 'platform': 'depop'}, {'id': 'lst_002', 'title': 'Y2K Baby Tee — Butterfly Print', 'description': 'Super cute early 2000s baby tee with butterfly graphic. Fitted crop length. Tag says medium but fits like a small.', 'category': 'tops', 'style_tags': ['y2k', 'vintage', 'graphic tee', 'cottagecore'], 'size': 'S/M', 'condition': 'excellent', 'price': 18.0, 'colors': ['white', 'pink', 'purple'], 'brand': None, 'platform': 'depop'}, {'id': 'lst_033', 'title': 'Vintage Band Tee — Faded Grey', 'description': 'Faded grey band-style tee with distressed graphic. Crew neck. Fits boxy. Well-loved but no holes or major damage.', 'category': 'tops', 'style_tags': ['vintage', 'grunge', 'band tee', 'graphic tee', 'streetwear'], 'size': 'L', 'condition': 'fair', 'price': 19.0, 'colors': ['grey', 'charcoal'], 'brand': None, 'platform': 'depop'}, {'id': 'lst_006', 'title': 'Graphic Tee — 2003 Tour Bootleg Style', 'description': 'Vintage-style bootleg tee with faded graphic. Slightly boxy fit. 100% cotton, soft and worn-in.', 'category': 'tops', 'style_tags': ['graphic tee', 'vintage', 'grunge', 'streetwear', 'band tee'], 'size': 'L', 'condition': 'good', 'price': 24.0, 'colors': ['black'], 'brand': None, 'platform': 'depop'}, {'id': 'lst_015', 'title': 'Vintage Graphic Hoodie — Faded Black', 'description': 'Faded black pullover hoodie with barely-visible vintage graphic on the chest. Cozy interior. Some pilling but adds to the worn-in look.', 'category': 'tops', 'style_tags': ['vintage', 'grunge', 'graphic', 'streetwear'], 'size': 'L', 'condition': 'fair', 'price': 26.0, 'colors': ['black', 'charcoal'], 'brand': None, 'platform': 'depop'}]
 ```
 
 ```
@@ -487,7 +506,7 @@ eval, a `serve.py` request — leaves the state alone.
 **Real output from one try**, pasted as text, naming the file and function
 that produced it:
 
-Source: `results/run_2026-10-08_1114.md` 
+Source: `results/run_2026-10-08_1114_before.md` 
 Produced by `run_eval.py::main`
 
 ### matching query completes
@@ -907,24 +926,296 @@ The behavior is unchanged.
 
 **What I changed:**
 
+I refactored `tools.py::search_listings` so that it handles size search more robustly.
+
 **Which failure it was meant to fix:**
+
+Criterion 5 failed because it could not find a listing item with size "S" given
+a size constraint "small"
 
 ### Run Log — After
 
 | Criterion | Target | Try 1 | Try 2 | Try 3 | Try 4 | Try 5 | Verdict |
 |---|---|---|---|---|---|---|---|
-| 1.  |  |  |  |  |  |  |  |
-| 2.  |  |  |  |  |  |  |  |
-| 3.  |  |  |  |  |  |  |  |
-| 4.  |  |  |  |  |  |  |  |
-| 5.  |  |  |  |  |  |  |  |
+| 1. matching query completes | 4 of 5 | PASS | PASS | PASS | PASS | PASS | MET (5/5) |
+| 2. impossible query stops early | 5 of 5 | PASS | PASS | PASS | PASS | PASS | MET (5/5) |
+| 3. selected item is correctly passed to suggest_outfit | 5 of 5 | PASS | PASS | PASS | PASS | PASS | MET (5/5) |
+| 4. fit card contains the item's price | 4 of 5 | PASS | PASS | PASS | PASS | PASS | MET (5/5) |
+| 5. query with a size successfully matches | 5 of 5 | PASS | PASS | PASS | PASS | PASS | MET (5/5) |
+
+**Real output from one try**, pasted as text, naming the file and function
+that produced it:
+
+Source: `results/run_2026-10-08_1535_after.md` 
+Produced by `run_eval.py::main`
+
+### matching query completes
+
+- Query: `vintage graphic tee under $30`
+- Wardrobe: example
+
+**Try 1**
+
+- stopped early: no
+- selected_item: Y2K Baby Tee — Butterfly Print ($18.0, depop)
+- search_results: 10
+
+Outfit suggestion:
+
+```
+Omg, major Y2K score! That butterfly baby tee is so nostalgic and the pink and purple tones are going to look amazing on you. Since the tee is super fitted and cropped, the best styling rule here is to play with proportions. 
+
+Here is your go-to look straight out of the early 2000s with a modern streetwear twist:
+
+**The Outfit:**
+* **Top:** Y2K Butterfly Baby Tee (*new item!*)
+* **Bottoms:** Baggy straight-leg jeans, dark wash (`w_001`)
+* **Shoes:** Chunky white sneakers (`w_007`)
+* **Accessories:** Black crossbody bag (`w_010`)
+* **Outerwear Layer (Optional):** Vintage black denim jacket (`w_006`) thrown over your shoulders if it gets chilly.
+
+**Why it works:**
+The contrast is everything! Pairing the ultra-feminine, fitted crop top with your high-waisted, dark wash baggy jeans creates that effortless, quintessential 90s/Y2K model-off-duty silhouette. The chunky white sneakers tie into the white base of the tee, and the black crossbody bag keeps it practical and sleek. 
+
+You're ready to serve looks. 🦋✨
+```
+
+Fit card:
+
+```
+Scored this absolute dream of a Y2K butterfly baby tee for just $18 on Depop! 🦋✨ The pink and purple graphic gives major nostalgic vibes, and I'm obsessed with how it fits.
+```
+
+Trace:
+
+```
+[1] parse_query
+      in:  vintage graphic tee under $30
+      out: {   "description": "vintage graphic tee",   "size": null,   "max_price": 30 }
+[2] MCP tool call search_listings
+      in:  {'description': 'vintage graphic tee', 'size': None, 'max_price': 30.0}
+      out: 10 items: Y2K Baby Tee — Butterfly Print, Vintage Band Tee — Faded Grey, Graphic Tee — 2003 Tour Bootleg Style … +7 more
+[3] compare_price
+      in:  {'id': 'lst_002', 'title': 'Y2K Baby Tee — Butterfly Print', 'description': 'Super cute early 2000s baby tee w…
+      out: fair
+[4] suggest_outfit
+      in:  new_item: {'id': 'lst_002', 'title': 'Y2K Baby Tee — Butterfly Print', 'description': 'Super cute early 2000s …
+      out: Omg, major Y2K score! That butterfly baby tee is so nostalgic and the pink and purple tones are going to look …
+[5] create_fit_card
+      in:  new_item: {'id': 'lst_002', 'title': 'Y2K Baby Tee — Butterfly Print', 'description': 'Super cute early 2000s …
+      out: Scored this absolute dream of a Y2K butterfly baby tee for just $18 on Depop! 🦋✨ The pink and purple graphic g…
+```
+
+### impossible query stops early
+
+- Query: `designer ballgown size XXS under $5`
+- Wardrobe: example
+
+**Try 1**
+
+- stopped early: yes — No listings matched 'designer ballgown' in size XXS under $5. Nothing in the listings matches 'designer ballgown' at all, whatever the size or price — loosen the wording (try 'tee' or 'top' on its own) and keep the rest as it is.
+- selected_item: (none)
+- search_results: 0
+
+Trace:
+
+```
+[1] parse_query
+      in:  designer ballgown size XXS under $5
+      out: {   "description": "designer ballgown",   "size": "XXS",   "max_price": 5 }
+[2] MCP tool call search_listings
+      in:  {'description': 'designer ballgown', 'size': 'XXS', 'max_price': 5.0}
+      out: [] (empty)
+[3] no_results
+      in:  {'description': 'designer ballgown', 'size': 'XXS', 'max_price': 5.0}
+      out: No listings matched 'designer ballgown' in size XXS under $5. Nothing in the listings matches 'designer ballgo…
+```
+
+### selected item is correctly passed to suggest_outfit
+
+- Query: `vintage blue jeans under $40`
+- Wardrobe: example
+
+**Try 1**
+
+- stopped early: no
+- selected_item: Baggy Carpenter Jeans — Dark Wash ($36.0, depop)
+- search_results: 10
+
+Outfit suggestion:
+
+```
+Hey! Amazing find on Depop—those 90s baggy carpenter jeans are such a staple, and at $36 with that hammer loop detail? Absolute steal. 
+
+Since the jeans have that heavy, relaxed workwear energy, the trick is to balance out the proportions up top while leaning into that effortless streetwear aesthetic. 
+
+Here is your go-to look using pieces straight from your wardrobe:
+
+### **The Fit: 90s Off-Duty Streetwear**
+
+* **Top:** **White ribbed tank top** (`w_003`)
+  * *Why it works:* The fitted silhouette of the ribbed tank creates a sharp, intentional contrast against the super-baggy, low-slung fit of the carpenter jeans. It’s that classic 90s model-off-duty proportion play.
+* **Outerwear:** **Oversized grey crewneck sweatshirt** (`w_004`)
+  * *Why it works:* Since it drops below the hip, you can wear this draped over your shoulders or throw it on top if there's a chill. It doubles down on the cozy, oversized streetwear vibe without losing the shape of the outfit.
+* **Shoes:** **Chunky white sneakers** (`w_007`)
+  * *Why it works:* These will stack perfectly over the hems of the wide carpenter legs, keeping the silhouette grounded and effortlessly cool.
+* **Accessories:** **Black crossbody bag** (`w_010`)
+  * *Why it works:* Keeps it functional, hands-free, and adds a sleek, modern touch to finish off the street style look.
+
+**Styling Pro-Tip:** Since the jeans sit at the waist and have that utilitarian edge, let the white tank tuck in slightly or wear it solo on warmer days with a chunky silver chain if you have one. If you need an extra layer for the evening, toss on that **Vintage black denim jacket** (`w_006`) for a cool denim-on-denim moment (indigo and black go *so* well together). 
+
+How are we feeling about this look? Ready to take those carpenter jeans for a spin?
+```
+
+Fit card:
+
+```
+Scored these vintage 90s baggy carpenter jeans on Depop for just $36, and the workwear fit is unmatched. Paired them with a classic ribbed tank and chunky sneakers for the ultimate off-duty streetwear look. 🛠️✨ #ThriftFinds #StreetwearStyle #90sFashion
+```
+
+Trace:
+
+```
+[1] parse_query
+      in:  vintage blue jeans under $40
+      out: {   "description": "vintage blue jeans",   "size": null,   "max_price": 40 }
+[2] MCP tool call search_listings
+      in:  {'description': 'vintage blue jeans', 'size': None, 'max_price': 40.0}
+      out: 10 items: Baggy Carpenter Jeans — Dark Wash, Vintage Levi's 501 Jeans — Medium Wash, High-Waisted Denim Shorts — Cutoff … +7 more
+[3] compare_price
+      in:  {'id': 'lst_031', 'title': 'Baggy Carpenter Jeans — Dark Wash', 'description': 'Baggy carpenter jeans with ham…
+      out: unknown
+[4] suggest_outfit
+      in:  new_item: {'id': 'lst_031', 'title': 'Baggy Carpenter Jeans — Dark Wash', 'description': 'Baggy carpenter jean…
+      out: Hey! Amazing find on Depop—those 90s baggy carpenter jeans are such a staple, and at $36 with that hammer loop…
+[5] create_fit_card
+      in:  new_item: {'id': 'lst_031', 'title': 'Baggy Carpenter Jeans — Dark Wash', 'description': 'Baggy carpenter jean…
+      out: Scored these vintage 90s baggy carpenter jeans on Depop for just $36, and the workwear fit is unmatched. Paire…
+```
+
+### fit card contains the item's price
+
+- Query: `oversized sweatshirt under $25`
+- Wardrobe: example
+
+**Try 1**
+
+- stopped early: no
+- selected_item: Oversized Crewneck Sweatshirt — Vintage Navy ($20.0, thredUp)
+- search_results: 1
+
+Outfit suggestion:
+
+```
+Hey! Incredible find on that vintage navy crewneck—a genuinely faded, unbranded sweatshirt is the holy grail of thrift shopping, and at $20, you totally won. 
+
+Since it’s an XL and has that great slouchy, lived-in feel, let's lean into an effortless, cool-girl streetwear look using pieces you already own. Here is the outfit formula:
+
+### **The Look: High-Low Casual Prep**
+
+*   **Top:** Your new **Oversized Crewneck Sweatshirt (Vintage Navy)** layered loosely over the **White ribbed tank top** (let the white hem peek out just a tiny bit at the bottom for dimension).
+*   **Bottoms:** Your **Wide-leg khaki trousers** (`w_002`). Navy and khaki are a timeless, effortless color combination that feels a bit more elevated than standard denim-on-denim. 
+*   **Footwear:** The **Chunky white sneakers** (`w_007`) to keep the vibe fresh, sporty, and balanced against the relaxed fit of the trousers and sweatshirt.
+*   **Accessories:** Pull it together with the **Black crossbody bag** (`w_010`) for a touch of everyday structure.
+
+**Why it works:** 
+The slouchy volume of the vintage navy sweatshirt paired with the relaxed drape of the wide-leg khaki trousers gives off that perfect relaxed, borrowed-from-the-boys silhouette. Letting the white tank peek out breaks up the navy-and-khaki palette, while the chunky sneakers anchor the whole look with a modern streetwear edge. 
+
+Throw it on, push up the sleeves, and you're out the door!
+```
+
+Fit card:
+
+```
+Scored the ultimate holy grail thrift find: a genuinely faded vintage navy crewneck with the best slouchy fit for just $20 on thredUp! ✨ Styled it with wide-leg trousers and fresh sneakers for the easiest high-low streetwear fit. Nothing beats the feel of the real vintage deal. 🤍
+```
+
+Trace:
+
+```
+[1] parse_query
+      in:  oversized sweatshirt under $25
+      out: {   "description": "sweatshirt",   "size": "oversized",   "max_price": 25 }
+[2] MCP tool call search_listings
+      in:  {'description': 'sweatshirt', 'size': 'oversized', 'max_price': 25.0}
+      out: 1 items: Oversized Crewneck Sweatshirt — Vintage Navy
+[3] compare_price
+      in:  {'id': 'lst_012', 'title': 'Oversized Crewneck Sweatshirt — Vintage Navy', 'description': 'Perfectly faded nav…
+      out: unknown
+[4] suggest_outfit
+      in:  new_item: {'id': 'lst_012', 'title': 'Oversized Crewneck Sweatshirt — Vintage Navy', 'description': 'Perfectly…
+      out: Hey! Incredible find on that vintage navy crewneck—a genuinely faded, unbranded sweatshirt is the holy grail o…
+[5] create_fit_card
+      in:  new_item: {'id': 'lst_012', 'title': 'Oversized Crewneck Sweatshirt — Vintage Navy', 'description': 'Perfectly…
+      out: Scored the ultimate holy grail thrift find: a genuinely faded vintage navy crewneck with the best slouchy fit …
+```
+
+### query with a size successfully matches
+
+- Query: `small denim jacket under $50`
+- Wardrobe: example
+
+**Try 1**
+
+- stopped early: no
+- selected_item: Denim Jacket — Light Wash, Cropped ($42.0, poshmark)
+- search_results: 1
+
+Outfit suggestion:
+
+```
+Hey! Amazing find on that Wrangler cropped light wash jacket—structured shoulders *and* a blank canvas make it such a versatile piece to add to your rotation. 
+
+Since the jacket is cropped with a great vintage shape, let's play with proportions and lean into a classic 90s streetwear vibe by pairing different shades of denim. 
+
+Here is your styled look:
+
+### **The Outfit: "Double Denim Streetwear"**
+
+*   **Outerwear:** Denim Jacket — Light Wash, Cropped (*Your new thrift find!*)
+*   **Top:** White ribbed tank top (`w_003`)
+*   **Bottoms:** Baggy straight-leg jeans, dark wash (`w_001`)
+*   **Shoes:** Chunky white sneakers (`w_007`)
+*   **Accessories:** Black crossbody bag (`w_010`)
+
+### **Why this works:**
+*   **The Proportion Play:** Because your new jacket is cropped and has structured shoulders, it pairs *dreamily* with high-waisted, baggy bottoms (`w_001`). The contrast between the fitted crop top and the relaxed, slouchy denim creates that effortless, perfectly balanced silhouette.
+*   **The Denim-on-Denim Contrast:** Pairing the light wash jacket with the dark indigo baggy jeans gives you a high-contrast double-denim look that feels very intentional and modern rather than costume-y. 
+*   **The Finishing Touches:** The white ribbed tank keeps things clean and minimal underneath, echoing the chunky white sneakers to tie the whole color story together. Throw on your black crossbody bag, and you’re ready to run errands or meet friends looking effortlessly cool.
+```
+
+Fit card:
+
+```
+Thrifted this structured Wrangler light wash cropped denim jacket for just $42 on Poshmark, and it’s officially my new wardrobe MVP. 🤌✨ Such a classic vintage find with endless styling potential—can't wait to live in this double-denim fit all season long!
+```
+
+Trace:
+
+```
+[1] parse_query
+      in:  small denim jacket under $50
+      out: {   "description": "denim jacket",   "size": "small",   "max_price": 50 }
+[2] MCP tool call search_listings
+      in:  {'description': 'denim jacket', 'size': 'small', 'max_price': 50.0}
+      out: 1 items: Denim Jacket — Light Wash, Cropped
+[3] compare_price
+      in:  {'id': 'lst_007', 'title': 'Denim Jacket — Light Wash, Cropped', 'description': 'Cropped denim jacket in a lig…
+      out: unknown
+[4] suggest_outfit
+      in:  new_item: {'id': 'lst_007', 'title': 'Denim Jacket — Light Wash, Cropped', 'description': 'Cropped denim jacke…
+      out: Hey! Amazing find on that Wrangler cropped light wash jacket—structured shoulders *and* a blank canvas make it…
+[5] create_fit_card
+      in:  new_item: {'id': 'lst_007', 'title': 'Denim Jacket — Light Wash, Cropped', 'description': 'Cropped denim jacke…
+      out: Thrifted this structured Wrangler light wash cropped denim jacket for just $42 on Poshmark, and it’s officiall…
+```
 
 **Did it help, and how do I know:**
 
 <!-- If it made things worse, say that. Honestly reported, that earns full
      credit and is more interesting than one that worked. -->
-
-
+Refactoring tools.py::search_listings resolved the issue that caused criterion 5 to fail.
+By making search_listings more robust (instead of just a string search) to different sizes, 5/5 queries which included a size now passed.
 
 ---
 

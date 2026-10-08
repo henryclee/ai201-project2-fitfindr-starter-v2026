@@ -76,9 +76,30 @@ def search_listings(
     max_price: float | None = None,
 ) -> list[dict]:
     """
-    This tool finds listings that match the given description, size, and maximum price.
-    It returns a list of dictionaries, each representing a listing with relevant details.
-    The `description` parameter is required, while `size` and `max_price` are optional filters.
+    Search secondhand listings for items matching a description, optionally in a
+    given size and under a price ceiling. Returns listings best-match-first.
+
+    `description` is required: space-separated keywords ("vintage graphic tee"),
+    matched case-insensitively against each listing's title, description, style
+    tags, colours and brand. A listing that shares no word with it is dropped, so
+    an empty list means nothing matched — it is never None and never raises.
+
+    `size` accepts either a seller's label or the way a person says it: "S",
+    "small", "medium", "M/L", "w30", "W30 L30", "US 8", "size 8", "one size",
+    "oversized". Both sides are normalised into a size family — alpha, one size,
+    waist, shoe — and a listing matches only if it is in a compatible family and
+    shares a label with the request. So "small" finds "S", "medium" finds "S/M"
+    and "w30" finds "W30 L30", but "s" does not return a US 7 shoe, "l" does not
+    return W30 L30 jeans, "XS" does not borrow an S and "8" does not match 8.5.
+    A "One Size" listing answers a request for S, M or L only, ranked last.
+    Omit it (None) to skip size filtering; a size that cannot be read is treated
+    the same way rather than returning a false empty.
+
+    `max_price` is in whole dollars, inclusive: 30 keeps a $30.00 listing.
+
+    Results are ordered by size match (exact label, then a range covering it,
+    then one size), then keyword overlap, then price ascending. At most 10 are
+    returned; take the first for the best match.
     """
     return _search_listings_impl(description, size, max_price)
 
