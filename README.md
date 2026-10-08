@@ -224,8 +224,6 @@ Scored these classic vintage Levi's 501s in the ultimate medium wash on Depop fo
      "I gave Claude my search_listings spec. It returned None on no match
      instead of an empty list, so I changed it" is the level we want. -->
 
-
-
 I used AI to help me write the search_listings tool, especially for the syntax for the score_listing sub function.
 
 **Moment 1**
@@ -542,21 +540,146 @@ that produced it:
 **Happy path**
 
 ```
+% python app.py ask 'vintage graphic tee under $30' --trace 
+[1] parse_query
+      in:  dict with keys: query
+      out: dict with keys: raw_result, cleaned_result
+[2] MCP tool call search_listings
+      in:  dict with keys: description, size, max_price
+      out: dict with keys: search_results
+[3] compare_price
+      in:  dict with keys: new_item
+      out: dict with keys: price_comparison
+[4] suggest_outfit
+      in:  dict with keys: new_item, wardrobe
+      out: dict with keys: outfit_suggestion
+[5] create_fit_card
+      in:  dict with keys: outfit, new_item
+      out: dict with keys: fit_card
 
+  Found:    Y2K Baby Tee — Butterfly Print — $18.0 on depop
+
+  Outfit:   Ooh, what a stellar find! That Y2K butterfly baby tee is such a classic piece, and at $18, you totally scored. Since the top is fitted and cropped with those sweet pink and purple tones, the best styling trick is to play with proportions by pairing it with something loose and low-key. 
+
+Here is your complete, ready-to-wear look combining your new thrifted score with pieces straight from your wardrobe:
+
+### **The Outfit: 2000s Streetwear Contrast**
+
+*   **Top:** Y2K Butterfly Baby Tee *(Your new find!)*
+*   **Bottoms:** Baggy straight-leg jeans, dark wash (`w_001`)
+*   **Outerwear:** Vintage black denim jacket (`w_006`)
+*   **Shoes:** Chunky white sneakers (`w_007`)
+*   **Accessories:** Black crossbody bag (`w_010`)
+
+### **Why This Works (Styling Notes):**
+*   **The Silhouette:** The golden rule of Y2K fashion is the "tight top, loose bottom" combo. Your fitted baby tee contrasts *so* well with the high-waisted, baggy dark wash jeans for that ultimate off-duty model look.
+*   **The Layers:** Toss on the slightly cropped vintage black denim jacket over the baby tee. Because the jacket is cropped, it won't hide the shape of the shirt, but it adds an extra layer of texture and grit to balance out the girly butterfly graphic.
+*   **The Finish:** Tie it all together with the chunky white sneakers to match the white base of the tee, and sling the black crossbody bag over your shoulder for an effortless, everyday vibe. 
+
+You're officially ready to step out looking like you walked straight out of a 2000s music video! ✨🦋
+
+  Fit card: Living out my 2000s pop star dreams in this vintage butterfly baby tee! 🦋✨ I managed to score this sweet pink and purple piece for just $18 on Depop, and I am obsessed with the fit.
+
+3 model calls this session, 1395 prompt + 477 output tokens
 ```
 
 **Empty search**
 
 ```
+% python app.py ask 'vintage graphic tee under $1' --trace 
+[1] parse_query
+      in:  dict with keys: query
+      out: dict with keys: raw_result, cleaned_result
+[2] MCP tool call search_listings
+      in:  dict with keys: description, size, max_price
+      out: dict with keys: search_results
+[3] no_results
+      in:  dict with keys: description, size, max_price
+      out: dict with keys: diagnosis
 
+  No listings matched 'vintage graphic tee' under $1. Nothing is under $1 — the cheapest match is Mesh Long-Sleeve Top — Black at $15 on depop, so raise max_price to about $15.
+
+1 model calls this session, 60 prompt + 37 output tokens
 ```
 
-**On the MCP move:** <!-- what changed in your code, and whether anything
+**Empty wardrobe**
+
+```
+% python app.py ask 'vintage graphic tee under $30' --empty-wardrobe --trace
+(running with an empty wardrobe)
+[1] parse_query
+      in:  dict with keys: query
+      out: dict with keys: raw_result, cleaned_result
+[2] MCP tool call search_listings
+      in:  dict with keys: description, size, max_price
+      out: dict with keys: search_results
+[3] compare_price
+      in:  dict with keys: new_item
+      out: dict with keys: price_comparison
+[4] suggest_outfit
+      in:  dict with keys: new_item, wardrobe
+      out: dict with keys: outfit_suggestion
+[5] create_fit_card
+      in:  dict with keys: outfit, new_item
+      out: dict with keys: fit_card
+
+  Found:    Y2K Baby Tee — Butterfly Print — $18.0 on depop
+
+  Outfit:   Hey babe! Oh, you hit the absolute jackpot with this Y2K butterfly baby tee. That fitted, cropped silhouette combined with the pink and purple butterfly graphic is quintessential early 2000s pop-star energy (think Britney, Christina, or Lizzie McGuire). 
+
+Since this is the very first piece in your new wardrobe, we are going to build a complete, head-turning outfit around it that leans into its nostalgic roots while keeping it totally wearable for today. 
+
+Here is your stylist blueprint for a full Y2K-inspired look:
+
+### 👖 The Bottoms: Low-Rise or Baggy Denim
+To balance the ultra-fitted, cropped vibe of the baby tee, you need some volume on the bottom. 
+* **The Look:** Look for a pair of **baggy, wide-leg, or low-rise jeans** in a medium-to-light wash. 
+* **Why it works:** The tight-top/baggy-bottom silhouette is the absolute holy grail of Y2K proportions. If you can find jeans with a little bit of rhinestone detailing on the back pockets or contrast stitching, even better!
+
+### 👟 The Footwear: Chunky Kicks
+Keep the footwear casual, comfortable, and chunky to anchor the retro aesthetic.
+* **The Look:** A pair of **platform sneakers** (like vintage-style pumas, chunky Adidas, or even retro platform Converse/Vans) in white or pastel pink to tie into the tee's color palette. 
+
+### 👜 The Bag: The Shoulder Bag
+You don't want a massive tote weighing down this playful look.
+* **The Look:** A **small nylon or faux-leather shoulder bag** (often called a baguette bag) tucked right under your arm. 
+* **Color choice:** Go for white, metallic silver, or a pastel purple that matches the butterflies. 
+
+### 🕶️ The Accessories: The Finishing Touches
+Y2K fashion is all about the little extras that pull a vibe together.
+* **Eyewear:** Grab some **tinted frameless sunglasses** (think pink or purple gradient lenses).
+* **Jewelry:** Keep it fun and youthful with a beaded choker necklace, some chunky plastic butterfly hair clips (claws or butterfly clips pinned in your hair), and maybe a few resin rings. 
+
+### 🌟 Pro-Styling Tip:
+Since the tee fits more like a small, let it be the star of the show by keeping the hem completely un-tucked over your low-rise denim to show off a sliver of midriff—very 2003 pop concert ready! 
+
+Have so much fun styling your first thrifted treasure! Let me know if you want to hunt for some bottoms to go with it next.
+
+  Fit card: Channeling major 2000s pop-star energy in this dreamy thrifted Y2K butterfly baby tee! Snagged this pink-and-purple gem over on Depop for just $18, and I am officially obsessed. ✨🦋
+
+3 model calls this session, 1011 prompt + 671 output tokens
+```
+
+**Model unavailable**
+
+```
+% python app.py ask 'vintage graphic tee under $30' --trace                 
+1 model calls this session
+
+ModelUnavailable: The model rejected your API key. Check GEMINI_API_KEY in your .env file, or create a fresh key at aistudio.google.com.
+```
+
+**On the MCP move:** 
+
+<!-- what changed in your code, and whether anything
 behaved differently afterwards. If the rewire didn't work, say exactly where it
 broke — the error text and the last thing that worked. That earns the point in
 full. -->
 
+I put the search_listings function into the MCP server, so when agent.py gets search_results
+from mcp_client.call_tool() instead of calling the search_listings function directly.
 
+The behavior is unchanged.
 
 ---
 

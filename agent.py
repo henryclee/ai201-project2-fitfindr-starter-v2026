@@ -141,11 +141,11 @@ def run_agent(query: str, wardrobe: dict, remember: bool = False) -> dict:
         # The model often wraps JSON in a ```json ... ``` fence — strip it.
         cleaned_result = re.sub(r"^```(?:json)?|```$", "", raw_result.strip()).strip()
 
-        # trace.step(
-        #     "parse_query",
-        #     inputs={"query": query},
-        #     returned={"raw_result": raw_result, "cleaned_result": cleaned_result},
-        # )
+        trace.step(
+            "parse_query",
+            inputs={"query": query},
+            returned={"raw_result": raw_result, "cleaned_result": cleaned_result},
+        )
 
         try:
             parsed_result = json.loads(cleaned_result)
@@ -200,15 +200,15 @@ def run_agent(query: str, wardrobe: dict, remember: bool = False) -> dict:
         },
     )
 
-    # trace.step(
-    #     "search_listings",
-    #     inputs={
-    #         "description": description,
-    #         "size": size,
-    #         "max_price": max_price,
-    #     },
-    #     returned={"search_results": search_results},
-    # )
+    trace.step(
+        "MCP tool call search_listings",
+        inputs={
+            "description": description,
+            "size": size,
+            "max_price": max_price,
+        },
+        returned={"search_results": search_results},
+    )
 
     #      ⚠️ THIS IS THE BRANCH. If nothing came back:
     #           - put a message in session["error"] saying what the user could
@@ -229,15 +229,15 @@ def run_agent(query: str, wardrobe: dict, remember: bool = False) -> dict:
             max_price=max_price,
         )
 
-        # trace.step(
-        #     "no_results",
-        #     inputs={
-        #         "description": description,
-        #         "size": size,
-        #         "max_price": max_price,
-        #     },
-        #     returned={"diagnosis": diagnosis},
-        # )
+        trace.step(
+            "no_results",
+            inputs={
+                "description": description,
+                "size": size,
+                "max_price": max_price,
+            },
+            returned={"diagnosis": diagnosis},
+        )
 
         session["error"] = diagnosis["message"]
         return session
@@ -251,11 +251,11 @@ def run_agent(query: str, wardrobe: dict, remember: bool = False) -> dict:
     for item in search_results:
         price_comparison = compare_price(new_item=item)
 
-        # trace.step(
-        #     "compare_price",
-        #     inputs={"new_item": item},
-        #     returned={"price_comparison": price_comparison},
-        # )
+        trace.step(
+            "compare_price",
+            inputs={"new_item": item},
+            returned={"price_comparison": price_comparison},
+        )
 
         if price_comparison["verdict"] != "overpriced":
             session["selected_item"] = item
@@ -272,14 +272,14 @@ def run_agent(query: str, wardrobe: dict, remember: bool = False) -> dict:
     )
     session["outfit_suggestion"] = outfit_suggestion
 
-    # trace.step(
-    #     "suggest_outfit",
-    #     inputs={
-    #         "new_item": session["selected_item"],
-    #         "wardrobe": wardrobe,
-    #     },
-    #     returned={"outfit_suggestion": outfit_suggestion},
-    # )
+    trace.step(
+        "suggest_outfit",
+        inputs={
+            "new_item": session["selected_item"],
+            "wardrobe": wardrobe,
+        },
+        returned={"outfit_suggestion": outfit_suggestion},
+    )
 
     #   7. Call create_fit_card() with the outfit and the item.
     #      Put the result in session["fit_card"].
@@ -289,14 +289,14 @@ def run_agent(query: str, wardrobe: dict, remember: bool = False) -> dict:
     )
     session["fit_card"] = fit_card
 
-    # trace.step(
-    #     "create_fit_card",
-    #     inputs={
-    #         "outfit": session["outfit_suggestion"],
-    #         "new_item": session["selected_item"],
-    #     },
-    #     returned={"fit_card": fit_card},
-    # )
+    trace.step(
+        "create_fit_card",
+        inputs={
+            "outfit": session["outfit_suggestion"],
+            "new_item": session["selected_item"],
+        },
+        returned={"fit_card": fit_card},
+    )
 
     #   7b. Style memory — the WRITE half. Only a run that finished gets
     #       remembered; one that stopped early has no selected item, and saving
