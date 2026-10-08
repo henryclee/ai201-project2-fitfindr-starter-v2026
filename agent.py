@@ -143,8 +143,8 @@ def run_agent(query: str, wardrobe: dict, remember: bool = False) -> dict:
 
         trace.step(
             "parse_query",
-            inputs={"query": query},
-            returned={"raw_result": raw_result, "cleaned_result": cleaned_result},
+            inputs=query,
+            returned=cleaned_result,
         )
 
         try:
@@ -202,12 +202,14 @@ def run_agent(query: str, wardrobe: dict, remember: bool = False) -> dict:
 
     trace.step(
         "MCP tool call search_listings",
-        inputs={
-            "description": description,
-            "size": size,
-            "max_price": max_price,
-        },
-        returned={"search_results": search_results},
+        inputs=str(
+            {
+                "description": session["parsed"]["description"],
+                "size": session["parsed"]["size"],
+                "max_price": session["parsed"]["max_price"],
+            }
+        ),
+        returned=search_results,
     )
 
     #      ⚠️ THIS IS THE BRANCH. If nothing came back:
@@ -231,12 +233,14 @@ def run_agent(query: str, wardrobe: dict, remember: bool = False) -> dict:
 
         trace.step(
             "no_results",
-            inputs={
-                "description": description,
-                "size": size,
-                "max_price": max_price,
-            },
-            returned={"diagnosis": diagnosis},
+            inputs=str(
+                {
+                    "description": description,
+                    "size": size,
+                    "max_price": max_price,
+                }
+            ),
+            returned=diagnosis["message"],
         )
 
         session["error"] = diagnosis["message"]
@@ -253,8 +257,8 @@ def run_agent(query: str, wardrobe: dict, remember: bool = False) -> dict:
 
         trace.step(
             "compare_price",
-            inputs={"new_item": item},
-            returned={"price_comparison": price_comparison},
+            inputs=str(item),
+            returned=price_comparison["verdict"],
         )
 
         if price_comparison["verdict"] != "overpriced":
@@ -274,11 +278,8 @@ def run_agent(query: str, wardrobe: dict, remember: bool = False) -> dict:
 
     trace.step(
         "suggest_outfit",
-        inputs={
-            "new_item": session["selected_item"],
-            "wardrobe": wardrobe,
-        },
-        returned={"outfit_suggestion": outfit_suggestion},
+        inputs=f"new_item: {session['selected_item']}, wardrobe with {len(wardrobe)} items",
+        returned=outfit_suggestion,
     )
 
     #   7. Call create_fit_card() with the outfit and the item.
@@ -291,11 +292,8 @@ def run_agent(query: str, wardrobe: dict, remember: bool = False) -> dict:
 
     trace.step(
         "create_fit_card",
-        inputs={
-            "outfit": session["outfit_suggestion"],
-            "new_item": session["selected_item"],
-        },
-        returned={"fit_card": fit_card},
+        inputs=f"new_item: {session['selected_item']}, outfit: {session['outfit_suggestion']}",
+        returned=fit_card,
     )
 
     #   7b. Style memory — the WRITE half. Only a run that finished gets
