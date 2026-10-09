@@ -20,6 +20,7 @@ import config
 import mcp_client
 import memory
 import no_results
+import relax
 import trace
 from tools import suggest_outfit, create_fit_card, compare_price
 from generate import ModelUnavailable, generate
@@ -54,6 +55,10 @@ def new_session(query: str, wardrobe: dict) -> dict:
         # Style memory: what was read from disk, and what got written back.
         # Filled in by run_agent() — see the two memory branches there.
         "memory": None,
+        # Stretch Feature 2: did this run drop the size filter to get a result?
+        # Filled in by run_agent() only when a size-filtered search came back empty —
+        # see the branch in run_agent() and relax.py.
+        "relaxed": None,
     }
 
 
@@ -225,6 +230,13 @@ def run_agent(query: str, wardrobe: dict, remember: bool = False) -> dict:
     #      a time and read the answer off the results. search_listings() makes no
     #      model call, so the probes cost a file read each — no quota, no rate
     #      limit, no extra model latency.
+    #
+    #      Stretch Feature 2 changes what "empty" means, in one direction only: when
+    #      the search had a size in it, we ask for the same thing once without the
+    #      size and say out loud that we did. The price ceiling is never dropped —
+    #      loosening two constraints at once leaves you with nothing honest to say
+    #      about what came back. The retry is one call, never a loop: a second
+    #      relaxation would be a different feature, and an unbounded one.
 
     if len(session["search_results"]) == 0:
         diagnosis = no_results.diagnose(
@@ -245,8 +257,85 @@ def run_agent(query: str, wardrobe: dict, remember: bool = False) -> dict:
             returned=diagnosis["message"],
         )
 
-        session["error"] = diagnosis["message"]
-        return session
+        # Stretch Feature 2 — one retry, size dropped, over the same MCP seam the
+        # first call used, so the trace shows a real second tool call rather than a
+        # branch nobody can see. Three states have to stay distinguishable: None means
+        # "never attempted" (no size applied, or the feature is off), [] means
+        # "attempted, still nothing", and a set `error` means "attempted, the call
+        # itself failed". Collapse them and the message can claim a search that never
+        # happened.
+
+        relaxed = None
+        retry_error = None
+        if relax.should_attempt(size):
+            try:
+                relaxed = mcp_client.call_tool(
+                    "search_listings",
+                    {
+                        "description": description,
+                        "size": None,
+                        "max_price": max_price,
+                    },
+                )
+
+                trace.step(
+                    "MCP tool call search_listings (retry: size filter dropped)",
+                    inputs=str(
+                        {
+                            "description": description,
+                            "size": None,
+                            "max_price": max_price,
+                        }
+                    ),
+                    returned=relaxed,
+                    note=f"dropped size={size} after 0 results",
+                )
+            except mcp_client.MCPError as exc:
+                # The retry is a bonus on top of an answer we already have — the
+                # diagnosis. A dead subprocess must not turn a clean "here is what
+                # blocked you" into a stack trace, and it must not be reported as "I
+                # retried and found nothing" either: it retried and got an error.
+                retry_error = str(exc)
+
+                trace.step(
+                    "MCP tool call search_listings (retry failed)",
+                    inputs=str(
+                        {
+                            "description": description,
+                            "size": None,
+                            "max_price": max_price,
+                        }
+                    ),
+                    returned=retry_error,
+                    note="retry never completed; falling back to the diagnosis",
+                )
+
+        session["relaxed"] = {
+            "attempted": relaxed is not None or retry_error is not None,
+            "dropped": "size" if relaxed else None,
+            "requested_size": size,
+            "found": len(relaxed or []),
+            "sizes": relax.sizes_found(relaxed or []),
+            "error": retry_error,
+            "note": None,  # written below, once an item has actually been selected
+        }
+
+        if relaxed:
+            # Back into the normal path. Everything from here on — selection,
+            # compare_price, suggest_outfit, create_fit_card — is unchanged and does
+            # not know or care that the results arrived without a size filter; the
+            # disclosure is what makes that safe to say out loud.
+            session["search_results"] = relaxed
+        else:
+            session["error"] = diagnosis["message"]
+            if retry_error is not None:
+                session["error"] += " " + relax.call_failed_note()
+            elif relaxed is not None:
+                # The retry proved the size was not the only thing stopping it, which
+                # is worth more than the guess it replaced. diagnose() has already
+                # named the wall; this only records that we climbed it.
+                session["error"] += " " + relax.tried_anyway()
+            return session
 
     #   5. Choose an item — the first result is fine. Put it in
     #      session["selected_item"].
@@ -269,6 +358,23 @@ def run_agent(query: str, wardrobe: dict, remember: bool = False) -> dict:
 
     if not session["selected_item"]:
         session["selected_item"] = search_results[0]
+
+    # Stretch Feature 2 — now that there is a pick, the disclosure can name its size.
+    # Written here rather than in the branch above because the relaxed list contains
+    # whatever matched the words, accessories included; the honest sentence is about
+    # the item this run is actually recommending.
+    if session["relaxed"] and session["relaxed"]["found"]:
+        session["relaxed"]["note"] = relax.note(
+            session["relaxed"]["requested_size"],
+            session["selected_item"],
+            session["relaxed"]["found"],
+        )
+
+        trace.step(
+            "relax disclosure",
+            inputs=f"requested size={session['relaxed']['requested_size']}",
+            returned=session["relaxed"]["note"],
+        )
 
     #   6. Call suggest_outfit() with the selected item and the wardrobe.
     #      Put the result in session["outfit_suggestion"].

@@ -67,6 +67,11 @@ def _cheapest(items: list[dict]) -> dict | None:
     return min(priced, key=lambda item: item["price"]) if priced else None
 
 
+# Public alias. relax.py writes a user-facing sentence out of the same reading
+# diagnose() uses; one definition keeps the two honest about the same numbers.
+sizes_on_file = _sizes
+
+
 # ── the probes ────────────────────────────────────────────────────────────────
 
 

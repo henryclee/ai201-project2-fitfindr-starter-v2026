@@ -1,0 +1,14 @@
+(retry-without-size off — this run stops at the empty search)
+[1] parse_query
+      in:  vintage graphic tee size XXS under $30
+      out: {   "description": "vintage graphic tee",   "size": "XXS",   "max_price": 30.00 }
+[2] MCP tool call search_listings
+      in:  {'description': 'vintage graphic tee', 'size': 'XXS', 'max_price': 30.0}
+      out: [] (empty)
+[3] no_results
+      in:  {'description': 'vintage graphic tee', 'size': 'XXS', 'max_price': 30.0}
+      out: No listings matched 'vintage graphic tee' in size XXS under $30. Nothing comes in size XXS — 'vintage graphic …
+
+  No listings matched 'vintage graphic tee' in size XXS under $30. Nothing comes in size XXS — 'vintage graphic tee' does exist in L, M, One Size, One Size (adjustable), S/M, XL (fits oversized), so try one of those or leave the size out.
+
+1 model calls this session, 64 prompt + 40 output tokens

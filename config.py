@@ -99,3 +99,12 @@ RESULTS_DIR = ROOT / "results"
 # itself on every `ask --memory`. results/ is committed because it records a
 # test that happened; this records what someone bought.
 MEMORY_FILENAME = "style_memory.json"
+
+
+# ─── Stretch Feature 2: retry with looser constraints ────────────────────────
+
+# Stretch Feature 2: when a size-filtered search comes back empty, retry it once with
+# the size dropped and tell the user that's what happened. On by default;
+# AI201_RELAX=0 (or app.py ask --no-relax) turns it off, which is how the feature
+# gets measured against the behaviour it replaced.
+RETRY_WITHOUT_SIZE = os.getenv("AI201_RELAX", "1") != "0"

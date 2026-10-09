@@ -94,6 +94,7 @@ Useful flags on `ask`:
 | `--trace` | Print the loop step by step, once you've added the trace calls |
 | `--empty-wardrobe` | Run as a user with nothing saved — one of unit 4's failure modes |
 | `--memory` | Read `data/style_memory.json` and add this run's find to it. Off by default, and `--empty-wardrobe` outranks it |
+| `--no-relax` | Don't retry an empty size-filtered search without the size. Stops at the diagnosis instead — **stretch feature 2** |
 
 ---
 
@@ -173,6 +174,7 @@ the point of the session.
 | `mcp_server.py` | Your MCP server — **unit 4, you register the tool** |
 | `mcp_client.py` | Calling an MCP tool from your agent. Given to you |
 | `scenarios.py` | What your test runs. **You fill this in** |
+| `relax.py` | Stretch feature 2: whether an empty size-filtered search gets retried without the size, and the sentences that say so |
 | `run_eval.py` | Runs the scenarios repeatedly and writes the run log |
 | `criteria.md` | Your five acceptance criteria. **You fill this in** |
 | `data/` | 40 listings and the wardrobe schema |
@@ -192,6 +194,40 @@ If your fit cards come out **word-for-word identical** every time, it is one of:
   turns it off automatically.
 - **`TEMPERATURE`** — at `0.0` the model gives you the same words every time.
   It ships at `0.9`.
+
+---
+
+## Retry-without-size — **stretch feature 2**
+
+When a search that had a size in it comes back empty, the loop asks for the same
+description under the same price ceiling once more with the size dropped, and says out
+loud above `Found:` that it did. On by default.
+
+Any one of these restores the old stop-at-the-empty-search behaviour:
+
+| How | Scope |
+|---|---|
+| `python app.py ask '...' --no-relax` | this run |
+| `AI201_RELAX=0 python app.py ask '...'` | this run, from the shell |
+| `AI201_RELAX=0` in `.env` | every run on this machine |
+| `RETRY_WITHOUT_SIZE = False` in `config.py` | the default, for everyone |
+
+`AI201_RELAX` is the environment variable; `RETRY_WITHOUT_SIZE` is the Python setting it
+becomes. One rule worth knowing: `load_dotenv` does not overwrite a variable already set
+in your shell, so `AI201_RELAX=1 python app.py ...` wins over `AI201_RELAX=0` in `.env`.
+
+The pair the README's evidence comes from:
+
+```bash
+python app.py ask 'vintage graphic tee size XXS under $30' --trace --no-relax \
+  2>&1 | tee results/relax_before.txt
+python app.py ask 'vintage graphic tee size XXS under $30' --trace \
+  2>&1 | tee results/relax_after.txt
+```
+
+Only the size is ever dropped. The price ceiling stays, and a search that had no size in
+it is never retried — there would be nothing left to change. Tests:
+`python -m unittest test_relaxed_retry`.
 
 ---
 
@@ -232,6 +268,10 @@ is the most common architectural failure in production agents.
 | MCP returns a string where you expected a list | You're not going through `mcp_client.call_tool`, which unwraps it |
 | Fit cards identical every run | `CACHE_ENABLED` or `TEMPERATURE`. See above |
 | `--trace` prints nothing | You haven't added `trace.step()` calls yet — unit 4, Milestone 2 |
+| `Found:` shows a size you didn't ask for | Look at the line above it. Stretch feature 2 prints what it dropped and what came back ("… It is not the size you asked for."). Want the old stop-at-the-empty-search behaviour? `--no-relax` |
+| A second `search_listings (retry: size filter dropped)` step in `--trace` | Working as intended — that's the retry, price ceiling intact. It only fires when a size was applied *and* the first search came back empty |
+| `--no-relax` seems to do nothing | It only changes queries that had a size and found nothing. Try `python app.py ask 'vintage graphic tee size XXS under $30' --trace --no-relax` |
+| Wrong-size result with no disclosure above it | The sentence is written after the item is selected (`agent.py`, `session["relaxed"]["note"]`). If you changed selection, run `python -m unittest test_relaxed_retry` |
 | `IncompleteFieldDefinitionWarning: Field 'lifespan'` | Harmless noise from the MCP library's dependencies. Not your code, not an error. Ignore it |
 | A price ceiling you typed is being ignored | You used double quotes in PowerShell. `$30` vanished. Use single quotes |
 | `UnicodeEncodeError: 'charmap' codec can't encode` | Shouldn't happen — `config.py` sets the console to UTF-8. If you see it, you're running a file that doesn't import `config` |

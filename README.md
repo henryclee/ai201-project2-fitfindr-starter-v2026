@@ -146,9 +146,23 @@ Note, that with the stretch feature fourth tool, the selected item is the highes
 item that is not "overpriced." If no such item exists, then it defaults to the first
 item in the list.
 
-**Where it lives:** the branch itself — `if len(search_results) == 0:` ... `return session` —
-is in `agent.py::run_agent`. The sentence it puts in `session["error"]` is built by
-`no_results.py::diagnose`, which `run_agent` calls from inside that branch.
+**The one exception (stretch feature 2):** if that empty list came back from a search
+that had a *size* in it, the loop does not stop yet — it asks for the same description
+and the same price ceiling once more with `size=None`. If the retry returns anything,
+that becomes `search_results` and the run continues, with a sentence printed above the
+result naming the size that was dropped and the size the item actually is. If the retry
+also returns nothing, the message goes in `session["error"]` with one extra sentence
+saying the size was tried and did not help, and the run stops. A search with no size in
+it never retries — there is nothing left to drop. `--no-relax` / `AI201_RELAX=0` turns
+the whole exception off and restores the rule above.
+
+**Where it lives:** the branch itself — `if len(session["search_results"]) == 0:` ...
+`return session` — is in `agent.py::run_agent`. The sentence it puts in
+`session["error"]` is built by `no_results.py::diagnose`, which `run_agent` calls from
+inside that branch. The retry is in the same branch, after the diagnosis: it goes
+through `mcp_client.call_tool("search_listings", ...)` — the same seam as the first
+call, so it shows up in the trace — and whether it happens at all is decided by
+`relax.py::should_attempt`, which reads `config.RETRY_WITHOUT_SIZE` at call time.
 
 **How the query is parsed:** <!-- regex, string splitting, or asking the model — say which -->
 The query is sent to generate with a prompt asking for a JSON object including keys for 
@@ -157,8 +171,12 @@ description, size, and max_price
 **What moves through the session:** <!-- which fields, in what order -->
 query — set at session creation
 parsed (description, size, max_price) — filled from the model-parsing step
-search_results — filled from search_listings()
+search_results — filled from search_listings(); replaced by the relaxed retry's results
+  if the size filter had to be dropped (see stretch feature 2)
 selected_item — the first search result (or loop stops here if empty, setting error instead)
+relaxed — None unless a size-filtered search came back empty. Then a dict: attempted,
+  dropped ("size"), requested_size, found, sizes, error, note. `note` is the disclosure
+  sentence written once an item has been selected, and app.py prints it above "Found:"
 outfit_suggestion — filled from suggest_outfit()
 fit_card — filled from create_fit_card()
 error - filled in case of an error (e.g. if search items fails to find a matched item)
@@ -289,6 +307,17 @@ Assistance with planning and implementing a refactor for search_listings.
 Iterated over planning the feature implementation with AI, then allowed AI to act on this plan.
 - *What I changed:*
 The code and comments for search_listings, as well as the unit tests, are AI generated.
+
+**Moment 6**
+- *What I asked for:*
+Planning and implementation of stretch feature 2 (retry an empty size-filtered search
+without the size). 
+- *What came back:*
+A plan that put the retry in `agent.py`'s empty-results branch instead of inside
+`tools.py::search_listings`, and routed it through `mcp_client.call_tool` so the second
+call is visible in the trace. 
+- *What I changed:*
+The code and comments for the relaxed retry, as well as the unit tests, are AI generated.
 
 ---
 
@@ -911,7 +940,7 @@ Since the tee already has a lot of personality with the butterfly graphic, keep 
 ModelUnavailable: The model rejected your API key. Check GEMINI_API_KEY in your .env file, or create a fresh key at aistudio.google.com.
 ```
 
-**On the MCP move:** 
+**On the MCP move:**  
 
 <!-- what changed in your code, and whether anything
 behaved differently afterwards. If the rewire didn't work, say exactly where it
@@ -1232,7 +1261,34 @@ By making search_listings more robust (instead of just a string search) to diffe
 <!-- For each criterion still missed: what you'd do, and why you stopped where
      you did. "I ran out of time" is fine if it's true. Pretending nothing is
      left is not. -->
-After the fix in Milestone 5, all 5 criteria now pass.
+After the fix in Milestone 5, all 5 criteria now pass. Criterion 6 (stretch feature 2)
+passes too, on the evidence at the end of this file. What is still weak about it:
+
+**8.1 The measurement is one run per side, not five.** Criterion 6 is decided by the
+parse and by `search_listings`, both of which are deterministic once the query parses —
+but "deterministic" is a claim about this data, and five tries on each side would test
+it instead of assuming it. I chose the pair because the free tier is already rate
+limited here and a 5+5 pair costs roughly ten model calls against two. The number that
+would change with more tries is the parse, not the retry.
+
+**8.2 The retry fires even when `diagnose()` already knows the size was not the wall.**
+On `designer ballgown size XXS under $5` the diagnosis says "nothing matches those
+words at all", and we spend a second search proving it. That is deliberate — proven
+beats inferred, and the extra call is a subprocess reading a JSON file (~0.3s) — but it
+does mean an empty search with a size costs two searches instead of one, and a query
+that can never succeed pays that every time.
+
+**8.3 A relaxed search answers the words, not the garment.** `vintage graphic tee`
+without a size returns a leather belt and a bucket hat at ranks 6 and 7, because they
+match the words. The selection step happens to pick the tee (`lst_002`), so nothing
+wrong shipped, but nothing in the retry *guarantees* it either. A category filter on
+the retry would fix this and I did not add one; the disclosure is what's carrying it.
+
+**8.4 The disclosure is only honest for one dropped constraint.** It says "I dropped
+the size filter". If a second relaxation is ever added — price, category, platform —
+that sentence becomes incomplete, and nothing in the code or the tests would notice.
+`session["relaxed"]["dropped"]` is a string for exactly this reason: when it becomes a
+list, the sentence has to be rebuilt from it.
 
 ---
 
@@ -1289,7 +1345,123 @@ Toss on your slightly cropped vintage black denim jacket to tie the dark element
 
 ## Stretch Feature 2 - Retry with Looser Constraints
 
+**The rule.** When a search that had a size in it comes back empty, ask for the same
+description under the same price ceiling once more with `size=None` — one retry, never
+a loop — and say out loud that the size was dropped and what size actually came back.
+If the retry also finds nothing, say it found nothing *after* retrying, and leave the
+diagnosis that named the real wall standing.
 
+**Where it lives.** `agent.py::run_agent`, inside the existing empty-results branch,
+after `no_results.diagnose()` and before `session["error"]` is set. The retry goes
+through `mcp_client.call_tool("search_listings", ...)` — the same seam as the first
+call, which is why it appears in the trace as a second MCP tool call instead of a
+branch nobody can see. `relax.py` holds the policy (`should_attempt`) and the three
+sentences the user can end up reading; it calls nothing, which is why all 21 tests in
+`test_relaxed_retry.py` run without a model or the loop.
+
+**What did not change.** `tools.py::search_listings` still means exactly what the Tool
+Inventory says: strict size match, empty list when nothing matches, no widening. A tool
+that quietly answers an XXS request with an L is the failure criterion 5 was written to
+prevent. The loosening is a decision the loop makes and announces.
+
+**Switch.** On by default. Off with `python app.py ask ... --no-relax` or
+`AI201_RELAX=0`, which is how the pair below was measured — one line of config
+(`config.RETRY_WITHOUT_SIZE`), not a rewrite, so both sides run the same loop.
+
+### Before — `--no-relax`: one search, then stop
+
+`results/relax_before.txt`
+
+```
+% python app.py ask 'vintage graphic tee size XXS under $30' --trace --no-relax
+(retry-without-size off — this run stops at the empty search)
+[1] parse_query
+      in:  vintage graphic tee size XXS under $30
+      out: {   "description": "vintage graphic tee",   "size": "XXS",   "max_price": 30.00 }
+[2] MCP tool call search_listings
+      in:  {'description': 'vintage graphic tee', 'size': 'XXS', 'max_price': 30.0}
+      out: [] (empty)
+[3] no_results
+      in:  {'description': 'vintage graphic tee', 'size': 'XXS', 'max_price': 30.0}
+      out: No listings matched 'vintage graphic tee' in size XXS under $30. Nothing comes in size XXS — 'vintage graphic …
+
+  No listings matched 'vintage graphic tee' in size XXS under $30. Nothing comes in size XXS — 'vintage graphic tee' does exist in L, M, One Size, One Size (adjustable), S/M, XL (fits oversized), so try one of those or leave the size out.
+
+1 model calls this session, 64 prompt + 40 output tokens
+```
+
+Three steps, no `suggest_outfit`. The advice is honest — it names the sizes that do
+exist — and it is still a dead end for someone wearing XXS, because ten tees that fit
+the words and the price were never looked at.
+
+### After — same query, retried without the size
+
+`results/relax_after.txt`
+
+```
+% python app.py ask 'vintage graphic tee size XXS under $30' --trace
+[1] parse_query
+      in:  vintage graphic tee size XXS under $30
+      out: {   "description": "vintage graphic tee",   "size": "XXS",   "max_price": 30 }
+[2] MCP tool call search_listings
+      in:  {'description': 'vintage graphic tee', 'size': 'XXS', 'max_price': 30.0}
+      out: [] (empty)
+[3] no_results
+      in:  {'description': 'vintage graphic tee', 'size': 'XXS', 'max_price': 30.0}
+      out: No listings matched 'vintage graphic tee' in size XXS under $30. Nothing comes in size XXS — 'vintage graphic …
+[4] MCP tool call search_listings (retry: size filter dropped)
+      in:  {'description': 'vintage graphic tee', 'size': None, 'max_price': 30.0}
+      out: 10 items: Y2K Baby Tee — Butterfly Print, Vintage Band Tee — Faded Grey, Graphic Tee — 2003 Tour Bootleg Style … +7 more
+      →    dropped size=XXS after 0 results
+[5] compare_price
+      in:  {'id': 'lst_002', 'title': 'Y2K Baby Tee — Butterfly Print', 'description': 'Super cute early 2000s baby tee w…
+      out: fair
+[6] relax disclosure
+      in:  requested size=XXS
+      out: Nothing on FitFindr comes in size XXS, so I dropped the size filter and found 10 matches. The pick below is si…
+[7] MCP tool call suggest_outfit
+      in:  new_item: {'id': 'lst_002', 'title': 'Y2K Baby Tee — Butterfly Print', 'description': 'Super cute early 2000s …
+      out: Hey babe! Oh, you scored *so* hard with this Y2K butterfly baby tee—$18 is an absolute steal for a piece with …
+[8] create_fit_card
+      in:  new_item: {'id': 'lst_002', 'title': 'Y2K Baby Tee — Butterfly Print', 'description': 'Super cute early 2000s …
+      out: Scored this absolute dream of a Y2K butterfly baby tee for just $18 on Depop, and I’m officially obsessed! Pai…
+
+  Nothing on FitFindr comes in size XXS, so I dropped the size filter and found 10 matches. The pick below is size S/M — Y2K Baby Tee — Butterfly Print, $18 on depop. It is not the size you asked for.
+
+  Found:    Y2K Baby Tee — Butterfly Print — $18.0 on depop
+
+  Outfit:   Hey babe! Oh, you scored *so* hard with this Y2K butterfly baby tee—$18 is an absolute steal for a piece with this much early 2000s nostalgia. 
+
+Since the baby tee is cropped and fitted with those gorgeous pink and purple butterfly tones, the golden rule of Y2K styling is all about playing with proportions: **tight top, loose bottom.** 
+
+Here is your complete look straight from your wardrobe:
+
+### **The Outfit Formula: Y2K Brat-Pack Streetwear**
+
+*   **Top:** Your new **Y2K Butterfly Baby Tee** (lst_002)
+*   **Bottoms:** **Baggy straight-leg jeans, dark wash** (`w_001`) — The high-waisted, dark indigo contrast against the pastel pink and purple butterfly graphic is *chef’s kiss*. It screams 2000s off-duty model.
+*   **Outerwear:** **Vintage black denim jacket** (`w_006`) — Throw this slightly cropped black denim jacket over your shoulders or arms for that effortless, layered texture. 
+*   **Shoes:** **Chunky white sneakers** (`w_007`) — These will tie in the white base of the baby tee and give you that chunky, authentic Y2K skater/pop-princess silhouette.
+*   **Accessories:** **Black crossbody bag** (`w_010`) — Keeps it practical and sleek while letting the tee and jeans do all the talking.
+
+### **Styling Tip from Your Stylist:**
+Because the jeans are high-waisted and baggy, let the cropped hem of the baby tee hit right at the waistband to show off your shape while keeping that relaxed, effortless vibe. You're ready to hit the thrift stores or grab an iced matcha! 🦋✨
+
+  Fit card: Scored this absolute dream of a Y2K butterfly baby tee for just $18 on Depop, and I’m officially obsessed! Paired it with my go-to baggy dark-wash jeans for that ultimate early 2000s off-duty model vibe. 🦋✨
+
+2 model calls this session, 647 prompt + 98 output tokens
+
+```
+
+Both sides parsed the same (`size="XXS"`, `max_price=30.0`), so the only difference
+between them is step 4 and everything it unlocked. The price ceiling held: all ten
+relaxed results are under $30, which `test_the_price_ceiling_survives_the_retry` pins.
+
+### The disclosure, verbatim
+
+    Nothing on FitFindr comes in size XXS, so I dropped the size filter and found 10 matches. The pick below is size S/M — Y2K Baby Tee — Butterfly Print, $18 on depop. It is not the size you asked for.
+
+---
 <!-- ═════════════════════════════════════════════════════════════════════
 
      SUBMISSION CHECKLIST — unit 3

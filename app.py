@@ -7,6 +7,8 @@ FitFindr — command line.
     python app.py ask --empty-wardrobe    run as a user with nothing saved
     python app.py ask '...' --memory      start from the saved wardrobe, and keep
                                           what this run finds in it
+    python app.py ask '...' --no-relax    stop at the empty search instead of
+                                          retrying it without the size
     python app.py wardrobe                what style memory remembers
     python app.py forget                  clear the saved wardrobe
     python app.py listings                browse the data  (Milestone 1)
@@ -121,6 +123,14 @@ def _ask_one(query, wardrobe, use_trace, remember=False):
     if session["error"]:
         print(f"  {session['error']}")
     else:
+        # Stretch Feature 2 — before the result, not after. Once somebody has read a
+        # title they like, they stop paying attention, and an item in the wrong size
+        # is exactly the thing that must not arrive unlabelled.
+        note = (session.get("relaxed") or {}).get("note")
+        if note:
+            print(f"  {note}")
+            print()
+
         item = session["selected_item"] or {}
         print(f"  Found:    {item.get('title')} — ${item.get('price')} on {item.get('platform')}")
         print()
@@ -158,6 +168,13 @@ def cmd_ask(args):
     wardrobe = get_empty_wardrobe() if args.empty_wardrobe else get_example_wardrobe()
     if args.empty_wardrobe:
         print("(running with an empty wardrobe)")
+
+    # --no-relax is Stretch Feature 2's switch, and it has to be set before
+    # run_agent() reads it. Off means the run stops at the empty search and says
+    # what blocked it — which is the behaviour this feature gets measured against.
+    if args.no_relax:
+        config.RETRY_WITHOUT_SIZE = False
+        print("(retry-without-size off — this run stops at the empty search)")
 
     # --empty-wardrobe is unit 4's failure-mode switch, and a switch that also
     # loaded a saved closet would not be one. It wins over --memory, and says so
@@ -264,6 +281,11 @@ def build_parser():
         "--memory",
         action="store_true",
         help=f"start from data/{config.MEMORY_FILENAME} and add this run's find to it",
+    )
+    p_ask.add_argument(
+        "--no-relax",
+        action="store_true",
+        help="don't retry an empty size-filtered search without the size filter",
     )
     p_ask.set_defaults(func=cmd_ask)
 
