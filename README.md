@@ -1287,6 +1287,9 @@ Toss on your slightly cropped vintage black denim jacket to tie the dark element
 
 ---
 
+## Stretch Feature 2 - Retry with Looser Constraints
+
+
 <!-- ═════════════════════════════════════════════════════════════════════
 
      SUBMISSION CHECKLIST — unit 3
