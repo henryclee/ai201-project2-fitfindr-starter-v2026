@@ -60,6 +60,7 @@ works with a direct call, and **a documented failure earns the point in full.**
 from mcp.server.fastmcp import FastMCP
 
 from tools import search_listings as _search_listings_impl  # noqa: F401 — you'll use this below
+from tools import suggest_outfit as _suggest_outfit_impl  # noqa: F401 — you'll use this below
 
 # log_level="WARNING" keeps the server from printing an INFO line for every
 # request. Without it your terminal fills with "Processing request of type
@@ -76,32 +77,22 @@ def search_listings(
     max_price: float | None = None,
 ) -> list[dict]:
     """
-    Search secondhand listings for items matching a description, optionally in a
-    given size and under a price ceiling. Returns listings best-match-first.
-
-    `description` is required: space-separated keywords ("vintage graphic tee"),
-    matched case-insensitively against each listing's title, description, style
-    tags, colours and brand. A listing that shares no word with it is dropped, so
-    an empty list means nothing matched — it is never None and never raises.
-
-    `size` accepts either a seller's label or the way a person says it: "S",
-    "small", "medium", "M/L", "w30", "W30 L30", "US 8", "size 8", "one size",
-    "oversized". Both sides are normalised into a size family — alpha, one size,
-    waist, shoe — and a listing matches only if it is in a compatible family and
-    shares a label with the request. So "small" finds "S", "medium" finds "S/M"
-    and "w30" finds "W30 L30", but "s" does not return a US 7 shoe, "l" does not
-    return W30 L30 jeans, "XS" does not borrow an S and "8" does not match 8.5.
-    A "One Size" listing answers a request for S, M or L only, ranked last.
-    Omit it (None) to skip size filtering; a size that cannot be read is treated
-    the same way rather than returning a false empty.
-
-    `max_price` is in whole dollars, inclusive: 30 keeps a $30.00 listing.
-
-    Results are ordered by size match (exact label, then a range covering it,
-    then one size), then keyword overlap, then price ascending. At most 10 are
-    returned; take the first for the best match.
+    Search for items matching a description, optionally in a given size and a
+    maximum price. Returns listings best-match-first.
     """
     return _search_listings_impl(description, size, max_price)
+
+
+@mcp.tool()
+def suggest_outfit(
+    new_item: dict,
+    wardrobe: dict,
+) -> str:
+    """
+    Suggest an outfit matching a description, optionally in a given size and a
+    maximum price. Returns listings best-match-first.
+    """
+    return _suggest_outfit_impl(new_item, wardrobe)
 
 
 #

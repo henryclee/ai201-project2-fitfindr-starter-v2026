@@ -273,13 +273,23 @@ def run_agent(query: str, wardrobe: dict, remember: bool = False) -> dict:
     #   6. Call suggest_outfit() with the selected item and the wardrobe.
     #      Put the result in session["outfit_suggestion"].
 
-    outfit_suggestion = suggest_outfit(
-        new_item=session["selected_item"], wardrobe=wardrobe
+    # Stretch Feature -- put this in a MCP tool as well
+
+    # outfit_suggestion = suggest_outfit(
+    #     new_item=session["selected_item"], wardrobe=wardrobe
+    # )
+
+    outfit_suggestion = mcp_client.call_tool(
+        "suggest_outfit",
+        {
+            "new_item": session["selected_item"],
+            "wardrobe": wardrobe,
+        },
     )
     session["outfit_suggestion"] = outfit_suggestion
 
     trace.step(
-        "suggest_outfit",
+        "MCP tool call suggest_outfit",
         inputs=f"new_item: {session['selected_item']}, wardrobe with {len(wardrobe)} items",
         returned=outfit_suggestion,
     )

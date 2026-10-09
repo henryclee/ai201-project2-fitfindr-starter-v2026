@@ -918,7 +918,7 @@ behaved differently afterwards. If the rewire didn't work, say exactly where it
 broke — the error text and the last thing that worked. That earns the point in
 full. -->
 
-I put the search_listings function into the MCP server, so when agent.py gets search_results
+I put the search_listings function into the MCP server, so agent.py gets search_results
 from mcp_client.call_tool() instead of calling the search_listings function directly.
 
 The behavior is unchanged.
@@ -1233,6 +1233,59 @@ By making search_listings more robust (instead of just a string search) to diffe
      you did. "I ran out of time" is fine if it's true. Pretending nothing is
      left is not. -->
 After the fix in Milestone 5, all 5 criteria now pass.
+
+---
+
+## Stretch Feature 1 - A second tool moved to MCP
+
+I moved suggest_outfit to MCP server, so agent.py gets outfit_suggestion from
+mcp.client_call_tool() instead of claling the suggest_outfit function directly.
+
+The behavior is unchanged.
+
+**Sample Run with MCP call visible in trace**
+
+% python app.py ask 'vintage graphic tee under $30' --trace
+[1] parse_query
+      in:  vintage graphic tee under $30
+      out: {   "description": "vintage graphic tee",   "size": null,   "max_price": 30 }
+[2] MCP tool call search_listings
+      in:  {'description': 'vintage graphic tee', 'size': None, 'max_price': 30.0}
+      out: 10 items: Y2K Baby Tee — Butterfly Print, Vintage Band Tee — Faded Grey, Graphic Tee — 2003 Tour Bootleg Style … +7 more
+[3] compare_price
+      in:  {'id': 'lst_002', 'title': 'Y2K Baby Tee — Butterfly Print', 'description': 'Super cute early 2000s baby tee w…
+      out: fair
+[4] MCP tool call suggest_outfit
+      in:  new_item: {'id': 'lst_002', 'title': 'Y2K Baby Tee — Butterfly Print', 'description': 'Super cute early 2000s …
+      out: Hey babe, congratulations on the new thrift score! That Y2K butterfly baby tee is an absolute steal for $18, a…
+[5] create_fit_card
+      in:  new_item: {'id': 'lst_002', 'title': 'Y2K Baby Tee — Butterfly Print', 'description': 'Super cute early 2000s …
+      out: Living out my early 2000s pop-star dreams in this super cute Y2K butterfly baby tee! 🦋✨ Snagged this pink and …
+
+  Found:    Y2K Baby Tee — Butterfly Print — $18.0 on depop
+
+  Outfit:   Hey babe, congratulations on the new thrift score! That Y2K butterfly baby tee is an absolute steal for $18, and since it has that fitted, cropped silhouette, it’s begging for some contrast. 
+
+Here is your go-to outfit formula using pieces straight from your wardrobe to lean right into that effortless Y2K street style:
+
+### **The Outfit: 2000s Brat-Pack Casual**
+
+*   **Top:** Y2K Butterfly Baby Tee (*New Item!*)
+*   **Bottoms:** Baggy straight-leg jeans, dark wash (`w_001`) 
+*   **Outerwear:** Vintage black denim jacket (`w_006`) — *wear it draped over the shoulders or unzipped to show off the crop!*
+*   **Shoes:** Chunky white sneakers (`w_007`)
+*   **Accessories:** Black crossbody bag (`w_010`)
+
+### **Why It Works:**
+The golden rule of styling fitted baby tees is playing with proportions. By pairing the super-cropped, pink-and-purple graphic tee with your high-waisted, baggy dark wash jeans, you get that quintessential early-2000s silhouette. 
+
+Toss on your slightly cropped vintage black denim jacket to tie the dark elements together while letting the white, pink, and purple pop from the center. Finish it off with the chunky white sneakers to echo the white in the tee, and sling your black crossbody bag across your chest. You’re ready to conquer the day looking effortlessly cool! ✨🦋
+
+  Fit card: Living out my early 2000s pop-star dreams in this super cute Y2K butterfly baby tee! 🦋✨ Snagged this pink and purple beauty on Depop for just $18, and honestly, it’s giving major nostalgic vibes.
+
+2 model calls this session, 587 prompt + 91 output tokens
+
+---
 
 <!-- ═════════════════════════════════════════════════════════════════════
 
